@@ -179,13 +179,11 @@ void Matcher::stereoMatch(const vector<KeyPoint> & kpVecL, const vector<KeyPoint
   
   assert(NL == matches.size());
   
-  double * bestDists;
-  bestDists = new double[NL];
+  vector<double> bestDists(NL, 0.2);
   
   for (int i = 0; i < NL; i++)
   {
     matches[i] = -1;
-    bestDists[i] = 0.2;
   }
 
   for (int j = 0; j < NR; j++)
@@ -197,13 +195,13 @@ void Matcher::stereoMatch(const vector<KeyPoint> & kpVecL, const vector<KeyPoint
     {
       if (abs(binMapL(kpVecL[i].pt(1), kpVecL[i].pt(0)) - binMapR(kpVecR[j].pt(1), kpVecR[j].pt(0))) <= 1)
       {
-	double dist = (kpVecL[i].desc - kpVecR[j].desc).norm();
-	//cout << "dist=" << dist << endl;
-	if (dist < bestDist)
-	{
-	  bestDist = dist;
-	  iTempMatch = i;	
-	}
+	    double dist = (kpVecL[i].desc - kpVecR[j].desc).norm();
+	    //cout << "dist=" << dist << endl;
+	    if (dist < bestDist)
+	    {
+	      bestDist = dist;
+	      iTempMatch = i;	
+	    }
       }
     }
     if (bestDist < bestDists[iTempMatch])
@@ -218,7 +216,7 @@ void Matcher::stereoMatch(const vector<KeyPoint> & kpVecL, const vector<KeyPoint
     cout << " i=" << i << " bestDists[i]=" << bestDists[i] << endl;
   }
   
-  
-  delete[] bestDists;
-  
 }
+
+
+

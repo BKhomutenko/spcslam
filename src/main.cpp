@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
 
     vector<Vector2d> proj1, proj2;
     vector<Vector3d> cloud, cloud2;
-    int maxNum = 250000;
+    int maxNum = 250;
 
     cartograph.trajectory.push_back(Transformation(0, 0, 0, 0, 0, 0));
     cartograph.trajectory.push_back(Transformation(0, 0, 1, 0, 0.2, 0));
@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
         cartograph.LM[i].X += Vector3d::Random(); 
     }
 
-    cartograph.trajectory[1] = Transformation(0.1, -0.1, 1.1, 0.11, 0.22, -0.1);
+    cartograph.trajectory[1] = Transformation(.1, -.1, .1, .11, .22, -0.1);
     cartograph.trajectory[2] = Transformation(-0.1, 0.1, 2.08, -0.1, 0.27, 0.1);
 
 //    Matrix3d R;
@@ -207,12 +207,19 @@ int main(int argc, char** argv) {
 
     beginTime = clock();
     
-    cartograph.improveTheMap();
+    //cartograph.improveTheMap();
 //    cartograph.projectPointCloud(cloud, proj1, proj2);
 
-    entTime = clock();
-    cout << "BA time : " << double(entTime - beginTime) / CLOCKS_PER_SEC << endl;
+    vector<bool> inlierMask(proj1.size());
+    Transformation xi = cartograph.trajectory[1];
+    cartograph.odometryRansac(proj1, cloud, inlierMask, xi);
     
+    
+
+    entTime = clock();
+    
+    cout << "RANSAC time : " << double(entTime - beginTime) / CLOCKS_PER_SEC << endl;
+    cout << "Xi : " << xi << endl;
     vector<Vector3d> cloud3;
     for (auto & lm : cartograph.LM)
     {
