@@ -298,14 +298,9 @@ void StereoCartography::odometryRansac(
         Transformation & xi)
 {
     assert(observationVec.size() == cloud.size());
+    assert(inlierMask.size() == cloud.size());
     int numPoints = observationVec.size();
-    
-    inlierMask.resize(numPoints);
-    
     int numIterMax = 25;
-    const Transformation initialPose = xi;
-    Transformation pose;
-    int bestInliers = 0;
     for (unsigned int iteration = 0; iteration < numIterMax; iteration++)
     {
         int maxIdx = observationVec.size();
@@ -323,12 +318,12 @@ void StereoCartography::odometryRansac(
 			idx3m = rand() % maxIdx;
 		} while (idx3m == idx1m or idx3m == idx2m);
         
-        pose = initialPose;        
+                
         //compute xi using these points
-        for (unsigned int i = 0; i < 50; i++)
+        for (unsigned int i = 0; i < 6; i++)
         {
-            double theta = pose.rot().norm();
-            Matrix3d uhat = hat(pose.rot());
+            double theta = xi.rot().norm();
+            Matrix3d uhat = hat(xi.rot());
             Matrix3d LxiInv = Matrix3d::Identity() + 
                 theta/2*sinc(theta/2)*uhat + 
                 (1 - sinc(theta))*uhat*uhat;
@@ -336,7 +331,7 @@ void StereoCartography::odometryRansac(
             Matrix3d Rbo, Rcb;
             Vector3d Pbo, Pcb;
             
-            pose.toRotTransInv(Rbo, Pbo);
+            xi.toRotTransInv(Rbo, Pbo);
             stereo.pose1.toRotTransInv(Rcb, Pcb);
             
             Vector3d X1, X2, X3;            
@@ -351,7 +346,7 @@ void StereoCartography::odometryRansac(
             stereo.cam1->projectPoint(X2, Err2);
             stereo.cam1->projectionJacobian(X2, J2);
             
-            X3 = Rcb*(Rbo*cloud[idx3m] + Pbo) + Pcb;
+            X3 = Rcb*(Rbo*cloud[idx2m] + Pbo) + Pcb;
             stereo.cam1->projectPoint(X3, Err3);            
             stereo.cam1->projectionJacobian(X3, J3);
             
@@ -367,46 +362,14 @@ void StereoCartography::odometryRansac(
                  observationVec[idx3m] - Err3;
             dxi = J.inverse() * E;
             
-            pose.trans() += dxi.head<3>();
-            pose.rot() += dxi.tail<3>();
-            
-            if (iteration < 3)
-            {
-                cout << J << endl;
-                cout << J.inverse() << endl << endl;
-            }
+            xi.trans() += dxi.head<3>();
+            xi.rot() += dxi.tail<3>();
         }
         
         //count inliers
-        vector<Vector3d> XbaseVec(numPoints);
-        pose.inverseTransform(cloud, XbaseVec);
-        vector<Vector2d> p1Vec(numPoints), p2Vec(numPoints);
-        stereo.projectPointCloud(XbaseVec, p1Vec, p2Vec);
-        vector<bool> currentInlierMask(numPoints, false);
-        
-        int countInliers = 0;
-        for (unsigned int i = 0; i < numPoints; i++)
-        {   
-//            cout << observationVec[i] << " " <<  p1Vec[i]<< endl;
-            Vector2d err = observationVec[i] - p1Vec[i];
-            if (err.norm() < 0.1)
-            {
-                currentInlierMask[i] = true;
-                countInliers++;
-            }
-        }
         //keep the best hypothesis
-        if (countInliers > bestInliers)
-        {
-            cout << "improvement "  << countInliers << " " <<  bestInliers << endl;
-            //TODO copy in a better way
-            inlierMask = currentInlierMask;
-            bestInliers = countInliers;
-            xi = pose;
-        }        
     }
 }
-
 /*
 Transformation StereoCartography::estimateOdometry(const vector<Feature> & observationVec)
 {
