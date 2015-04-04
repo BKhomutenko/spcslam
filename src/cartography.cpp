@@ -392,7 +392,7 @@ Transformation StereoCartography::estimateOdometry(const vector<Feature> & featu
         const vector<Vector2d> & observationVec,
         const vector<Vector3d> & cloud,
         vector<bool> & inlierMask,
-        Transformation & xi)
+        Transformation & xi);
     //Final transformation computation
 }
 
