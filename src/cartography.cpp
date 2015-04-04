@@ -19,9 +19,12 @@ using Eigen::Matrix;
 
 typedef Eigen::Matrix<double, 6, 6> Matrix6d;
 typedef Eigen::Matrix<double, 6, 1> Vector6d;
+
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Vector2d;
+
+using Eigen::RowMajor;
 
 int countCalls = 0;
 
@@ -219,7 +222,7 @@ Transformation StereoCartography::computeTransformation(
         const vector<Vector2d> & observationVec,
         const vector<Vector3d> & cloud, 
         const vector<bool> & inlierMask, 
-        Transformation xi)
+        Transformation & xi)
 {
     assert(observationVec.size() == cloud.size());
     assert(observationVec.size() == inlierMask.size());
@@ -227,52 +230,55 @@ Transformation StereoCartography::computeTransformation(
     Vector3d Pcb;
     stereo.pose1.toRotTransInv(Rcb, Pcb);
     Camera * camera = stereo.cam1;
-    // TODO put the iteration criterion
-    Matrix3d Rbo, LxiInv;
-    Vector3d Pbo;
-    xi.toRotTransInv(Rbo, Pbo);
-    Vector3d u = xi.rot();
-    double theta = u.norm();
-    if ( theta != 0)
+    //TODO add a termination criterion
+    for (unsigned int optimIter = 0; optimIter < 10; optimIter++)
     {
-        u /= theta;
-        Matrix3d uhat = hat(u);
-        LxiInv = Matrix3d::Identity() + 
-            theta/2*sinc(theta/2)*uhat + 
-            (1 - sinc(theta))*uhat*uhat;
-    }
-    else
-    {
-        LxiInv = Matrix3d::Identity();
-    }
-    Eigen::Matrix<double, 6, 6> JTJ = Eigen::Matrix<double, 6, 6>::Zero();
-    Eigen::Matrix<double, 6, 1> JTerr = Eigen::Matrix<double, 6, 1>::Zero();
-    double ERR = 0;
-    for (unsigned int i = 0; i < observationVec.size(); i++)
-    {
-        if (not inlierMask[i])
+        Matrix3d Rbo, LxiInv;
+        Vector3d Pbo;
+        xi.toRotTransInv(Rbo, Pbo);
+        Vector3d u = xi.rot();
+        double theta = u.norm();
+        if ( theta != 0)
         {
-            continue;
+            u /= theta;
+            Matrix3d uhat = hat(u);
+            LxiInv = Matrix3d::Identity() + 
+                theta/2*sinc(theta/2)*uhat + 
+                (1 - sinc(theta))*uhat*uhat;
         }
+        else
+        {
+            LxiInv = Matrix3d::Identity();
+        }
+        Eigen::Matrix<double, 6, 6> JTJ = Eigen::Matrix<double, 6, 6>::Zero();
+        Eigen::Matrix<double, 6, 1> JTerr = Eigen::Matrix<double, 6, 1>::Zero();
+        double ERR = 0;
+        for (unsigned int i = 0; i < observationVec.size(); i++)
+        {
+            if (not inlierMask[i])
+            {
+                continue;
+            }
 
-        Vector3d X = Rbo*cloud[i] + Pbo;
-        X = Rcb*X + Pcb;
-        Vector2d err;
-        camera->projectPoint(X, err);
-        err = observationVec[i] - err;
-        ERR += err.norm();
-        Matrix3d Rco = Rcb * Rbo;
-        Eigen::Matrix<double, 2, 3> Jx;
-        camera->projectionJacobian(X, Jx);
-        
-        Eigen::Matrix<double, 2, 6> Jcam;
-        Jcam << -Jx * Rco, Jx * hat(X) * Rco * LxiInv;
-        JTJ += Jcam.transpose()*Jcam;
-        JTerr += Jcam.transpose()*err;           
+            Vector3d X = Rbo*cloud[i] + Pbo;
+            X = Rcb*X + Pcb;
+            Vector2d err;
+            camera->projectPoint(X, err);
+            err = observationVec[i] - err;
+            ERR += err.norm();
+            Matrix3d Rco = Rcb * Rbo;
+            Eigen::Matrix<double, 2, 3> Jx;
+            camera->projectionJacobian(X, Jx);
+            
+            Eigen::Matrix<double, 2, 6> Jcam;
+            Jcam << -Jx * Rco, Jx * hat(X) * Rco * LxiInv;
+            JTJ += Jcam.transpose()*Jcam;
+            JTerr += Jcam.transpose()*err;           
+        }
+        auto dxi = JTJ.inverse()*JTerr;
+        xi.trans() += dxi.head<3>();
+        xi.rot() += dxi.tail<3>();
     }
-    auto dxi = JTJ.inverse()*JTerr;
-    xi.trans() += dxi.head<3>();
-    xi.rot() += dxi.tail<3>();
 }
         
 void StereoCartography::odometryRansac(
@@ -290,6 +296,7 @@ void StereoCartography::odometryRansac(
     const Transformation initialPose = xi;
     Transformation pose;
     int bestInliers = 0;
+    //TODO add a termination criterion
     for (unsigned int iteration = 0; iteration < numIterMax; iteration++)
     {
         int maxIdx = observationVec.size();
@@ -307,6 +314,10 @@ void StereoCartography::odometryRansac(
 			idx3m = rand() % maxIdx;
 		} while (idx3m == idx1m or idx3m == idx2m);
         
+//        cout << cloud[idx1m].transpose() << " ###### " << observationVec[idx1m].transpose() << endl; 
+//        cout << cloud[idx2m].transpose() << " ###### " << observationVec[idx2m].transpose() << endl;
+//        cout << cloud[idx3m].transpose() << " ###### " << observationVec[idx3m].transpose() << endl;
+//        cout << endl;
         pose = initialPose;        
         //compute xi using these points
         for (unsigned int i = 0; i < 50; i++)
@@ -354,10 +365,12 @@ void StereoCartography::odometryRansac(
             pose.trans() += dxi.head<3>();
             pose.rot() += dxi.tail<3>();
             
-            if (iteration < 3)
+            if (iteration < 0)
             {
-                cout << J << endl;
-                cout << J.inverse() << endl << endl;
+                cout << (observationVec[idx1m] - Err1).transpose() << endl;
+                cout << (observationVec[idx2m] - Err2).transpose() << endl;
+                cout << (observationVec[idx3m] - Err3).transpose() << endl;
+                cout << " ##### " << endl;
             }
         }
         
@@ -373,7 +386,7 @@ void StereoCartography::odometryRansac(
         {   
 //            cout << observationVec[i] << " " <<  p1Vec[i]<< endl;
             Vector2d err = observationVec[i] - p1Vec[i];
-            if (err.norm() < 0.1)
+            if (err.norm() < 2)
             {
                 currentInlierMask[i] = true;
                 countInliers++;
@@ -396,21 +409,21 @@ Transformation StereoCartography::estimateOdometry(const vector<Feature> & featu
     //Matching
     
     int numLandmarks = LM.size();
-    int numActive = 300;
+    int numActive = min(300, numLandmarks);
     vector<Feature> lmFeatureVec;
-    
-    for (unsigned int i = numLandmarks - 1; i >= numLandmarks - numActive; i--)
+    cout << "ca va" << endl;
+    for (unsigned int i = numLandmarks - numActive; i < numLandmarks; i++)
     {
         lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[i].d));
     }
-           
+    cout << "ca va" << endl;       
     Matcher matcher;    
     vector<int> matchVec;    
     matcher.bruteForce(featureVec, lmFeatureVec, matchVec);
     
     vector<Vector3d> cloud;
     vector<Vector2d> observationVec;
-    
+    cout << "ca va" << endl;
     for (unsigned int i = 0; i < featureVec.size(); i++)
     {
         const int match = matchVec[i];
@@ -419,16 +432,18 @@ Transformation StereoCartography::estimateOdometry(const vector<Feature> & featu
             continue;
         }
         observationVec.push_back(featureVec[i].pt);
-        cloud.push_back(LM[numLandmarks - match].X);
+        cloud.push_back(LM[numLandmarks  - numActive + match].X);
     }
+    cout << "cloud : " << cloud.size() << endl;
     //RANSAC
     vector<bool> inlierMask;
-    odometryRansac(
-        const vector<Vector2d> & observationVec,
-        const vector<Vector3d> & cloud,
-        vector<bool> & inlierMask,
-        Transformation & xi);
+    Transformation xi = trajectory.back();
+    odometryRansac(observationVec, cloud, inlierMask, xi);
+    cout << xi << endl;
     //Final transformation computation
+    computeTransformation(observationVec, cloud, inlierMask, xi);
+    cout << xi << endl;
+    return xi;
 }
 
 

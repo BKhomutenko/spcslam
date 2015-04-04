@@ -14,14 +14,18 @@ The mapping system itself
 //Ceres solver
 #include <ceres/ceres.h>
 
+#include "extractor.h"
 #include "geometry.h"
 #include "vision.h"
 
 //Structure is used to perform map improvement
 
 using namespace std;
-using namespace Eigen;
-using namespace ceres;
+using Eigen::Matrix;
+using Eigen::Vector2d;
+using Eigen::Vector3d;
+using Eigen::Matrix3d;
+
 
 struct Observation
 {
@@ -43,7 +47,7 @@ struct LandMark
     Vector3d X;
     
     //Feature descriptor
-    Vector<double, 64, 1> d;
+    Matrix<float, 64, 1> d;
     
     //All Vec6drealted measurements
     vector<Observation> observations;
@@ -106,7 +110,7 @@ public:
     void compute();
     
 private:
-    Problem problem;
+    ceres::Problem problem;
 
 };
 
@@ -133,7 +137,7 @@ public:
         const vector<Vector2d> & observationVec,
         const vector<Vector3d> & cloud, 
         const vector<bool> & inlierMask, 
-        Transformation xi);
+        Transformation & xi);
             
     void odometryRansac(
         const vector<Vector2d> & observationVec,
@@ -141,7 +145,7 @@ public:
         vector<bool> & inlierMask,
         Transformation & xi);
             
-    //Transformation estimateOdometry(const vector<KeyPoint> & observationVec);
+    Transformation estimateOdometry(const vector<Feature> & featureVec);
     // take 300 last landmarks 
     // BF matching
     // RANSAC

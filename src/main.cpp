@@ -1,14 +1,28 @@
 #include <iostream>
+#include <ctime>
+#include <cmath>
+#include <stdlib.h>
+#include <random>
+
+#include <ceres/rotation.h>
 
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 
+#include "cartography.h"
 #include "geometry.h"
-#include "mei.h"
 #include "vision.h"
+#include "mei.h"
 #include "matcher.h"
 #include "extractor.h"
+
+
+#define S 200
+#define SIZE Size(S, S)
+
+using namespace std;
+extern int countCalls;
 
 using Eigen::Vector3d;
 
@@ -54,66 +68,6 @@ void testBins(StereoSystem & stereo)
 
 }
 
-void testBruteForce()
-{
-
-    float resizeRatio = 1;
-
-    //stringstream sstm;
-
-    cv::Mat img1 = cv::imread("dataset_stereo_1/view_left_0.png", 0);
-    cv::Mat img2 = cv::imread("dataset_stereo_1/view_right_0.png", 0);
-
-    cv::resize(img1, img1, cv::Size(0,0), resizeRatio, resizeRatio);
-    cv::resize(img2, img2, cv::Size(0,0), resizeRatio, resizeRatio);
-
-    vector<Feature> kpVec1, kpVec2;
-    Extractor extr(1000, 2, 2, false, true);
-
-    extr(img1, kpVec1);
-    extr(img2, kpVec2);
-
-    const int N1 = kpVec1.size();
-    const int N2 = kpVec2.size();
-    cout << endl << "N1=" << N1 << " N2=" << N2 << endl;
-
-    vector<int> matches(N1, -1);
-
-    Matcher matcher;
-    matcher.bruteForce(kpVec1, kpVec2, matches);
-
-    vector<cv::KeyPoint> keypoints1;
-    for (int i = 0; i < N1; i++)
-    {
-        cv::KeyPoint kp(kpVec1[i].pt(0), kpVec1[i].pt(1), 1);
-        keypoints1.push_back(kp);
-    }
-
-    vector<cv::KeyPoint> keypoints2;
-    for (int i = 0; i < N2; i++)
-    {
-        cv::KeyPoint kp(kpVec2[i].pt(0), kpVec2[i].pt(1), 1);
-        keypoints2.push_back(kp);
-    }
-
-    vector<cv::DMatch> mD;
-    for (int i = 0; i < N1; i++)
-    {
-        if (matches[i] != -1)
-        {
-            //cout << "i=" << i << " matches[i]=" << matches[i] << endl;
-            cv::DMatch m(matches[i], i, 0);
-            mD.push_back(m);
-        }
-    }
-
-    cv::Mat imgMatches;
-    cv::drawMatches(img2, keypoints2, img1, keypoints1, mD, imgMatches);
-    cv::imshow("Matches", imgMatches);
-
-    cv::waitKey();
-
-}
 
 void testStereoMatch(StereoSystem & stereo)
 {
@@ -177,224 +131,6 @@ void testStereoMatch(StereoSystem & stereo)
 
 }
 
-void testStereoMatch_2(StereoSystem & stereo)
-{
-
-    float resizeRatio = 0.5; // resize the images only for display purposes!!!!!
-
-    stringstream sstm;
-
-    cv::Mat imgL = cv::imread("dataset_stereo_1/view_left_10.png", 0);
-    cv::Mat imgR = cv::imread("dataset_stereo_1/view_right_10.png", 0);
-
-    vector<Feature> kpVecL, kpVecR;
-    Extractor extr(1000, 2, 2, false, true);
-
-    extr(imgL, kpVecL);
-    extr(imgR, kpVecR);
-
-    const int NL = kpVecL.size();
-    const int NR = kpVecR.size();
-    cout << endl << "NL=" << NL << " NR=" << NR << endl;
-
-    vector<int> matches(NL, -1);
-
-    Matcher matcher;
-    matcher.initStereoBins(stereo);
-    matcher.stereoMatch(kpVecL, kpVecR, matches);
-
-    vector<cv::KeyPoint> keypointsL;
-    for (int i = 0; i < NL; i++)
-    {
-        cv::KeyPoint kp(kpVecL[i].pt(0)*resizeRatio, kpVecL[i].pt(1)*resizeRatio, 1);
-        keypointsL.push_back(kp);
-    }
-
-    vector<cv::KeyPoint> keypointsR;
-    for (int i = 0; i < NR; i++)
-    {
-        cv::KeyPoint kp(kpVecR[i].pt(0)*resizeRatio, kpVecR[i].pt(1)*resizeRatio, 1);
-        keypointsR.push_back(kp);
-    }
-
-    vector<cv::DMatch> mD;
-    for (int i = 0; i < NL; i++)
-    {
-        if (matches[i] != -1)
-        {
-            //cout << "i=" << i << " matches[i]=" << matches[i] << endl;
-            cv::DMatch m(i, matches[i], 0);
-            mD.push_back(m);
-        }
-    }
-
-    cout << endl << "Number of stereo matches: " << mD.size() << endl << endl;
-
-    cv::resize(imgL, imgL, cv::Size(0,0), resizeRatio, resizeRatio);
-    cv::resize(imgR, imgR, cv::Size(0,0), resizeRatio, resizeRatio);
-
-    vector<cv::DMatch> mD2;
-    vector<cv::KeyPoint> kL, kR;
-    for (int i = 0; i < mD.size(); i++)
-    {
-        mD2.clear();
-        kL.clear();
-        kR.clear();
-
-        int tr = mD[i].trainIdx;
-        int qu = mD[i].queryIdx;
-        cv::DMatch dm(0, 0, 1);
-        mD2.push_back(dm);
-        kL.push_back(keypointsL[qu]);
-        kR.push_back(keypointsR[tr]);
-
-        cv::Mat imgMatches;
-        cv::drawMatches(imgL, kL, imgR, kR, mD2, imgMatches);
-        cv::imshow("Matches", imgMatches);
-
-        cv::waitKey();
-    }
-
-}
-
-void testMatchReprojected()
-{
-
-    float resizeRatio = 0.6;
-
-    stringstream sstm;
-
-    cv::Mat img1 = cv::imread("dataset_reprojected_1/view_0.png", 0);
-    cv::Mat img2 = cv::imread("dataset_reprojected_1/view_1.png", 0);
-
-    cv::resize(img1, img1, cv::Size(0,0), resizeRatio, resizeRatio);
-    cv::resize(img2, img2, cv::Size(0,0), resizeRatio, resizeRatio);
-
-    vector<Feature> kpVec1, kpVec2;
-    Extractor extr(1000, 2, 2, false, true);
-
-    extr(img1, kpVec1);
-    extr(img2, kpVec2);
-
-    const int N1 = kpVec1.size();
-    const int N2 = kpVec2.size();
-    cout << endl << "N1=" << N1 << " N2=" << N2 << endl;
-
-    vector<int> matches(N1, -1);
-
-    Matcher matcher;
-    matcher.matchReprojected(kpVec1, kpVec2, matches);
-
-    vector<cv::KeyPoint> keypoints1;
-    for (int i = 0; i < N1; i++)
-    {
-        cv::KeyPoint kp(kpVec1[i].pt(0), kpVec1[i].pt(1), 1);
-        keypoints1.push_back(kp);
-    }
-
-    vector<cv::KeyPoint> keypoints2;
-    for (int i = 0; i < N2; i++)
-    {
-        cv::KeyPoint kp(kpVec2[i].pt(0), kpVec2[i].pt(1), 1);
-        keypoints2.push_back(kp);
-    }
-
-    vector<cv::DMatch> mD;
-    for (int i = 0; i < N1; i++)
-    {
-        if (matches[i] != -1)
-        {
-            //cout << "i=" << i << " matches[i]=" << matches[i] << endl;
-            cv::DMatch m(matches[i], i, 0);
-            mD.push_back(m);
-        }
-    }
-
-    cv::Mat imgMatches;
-    cv::drawMatches(img2, keypoints2, img1, keypoints1, mD, imgMatches);
-    cv::imshow("Matches", imgMatches);
-
-    cv::waitKey();
-
-}
-
-int main()
-{
-    Camera * cam1;
-    Camera * cam2;
-    cam1 = new MeiCamera(1296, 966, 1.39200313135677, 8.9661425437872310e+02, 8.9401437200675650e+02, 6.5205449530360681e+02, 4.7218039655643264e+02);
-    cam2 = new MeiCamera(1296, 966, 1.7009089913682820, 1.0102335582115433e+03, 1.0075016763931362e+03, 6.6174475465968897e+02, 4.8641648577657963e+02);
-
-    const Quaternion qR(1.2819328761269129e-03,  // (x, y, z, w)
-                        -5.0470030584528022e-02,
-                        -1.9222145763661295e-03,
-                        9.9872290338813241e-01);
-    const Vector3d tR(-7.8463742913216261e-01,  // (x, y, z) OL-OR expressed in CR reference frame?
-                      -3.1213039143325322e-03,
-                      -5.2863573996665768e-02);
-
-    Transformation T1, T2(-qR.rotate(tR), qR);
-
-    StereoSystem stereo(T1, T2, cam1, cam2);
-
-    //testBins(stereo);
-
-    //testBruteForce();
-
-    testStereoMatch(stereo);
-
-    //testStereoMatch_2(stereo);
-
-    //testMatchReprojected();
-
-}
-
-/*
-string type2str(int type) {
-    string r;
-
-    uchar depth = type & CV_MAT_DEPTH_MASK;
-    uchar chans = 1 + (type >> CV_CN_SHIFT);
-
-    switch ( depth ) {
-        case CV_8U:    r = "8U"; break;
-        case CV_8S:    r = "8S"; break;
-        case CV_16U: r = "16U"; break;
-        case CV_16S: r = "16S"; break;
-        case CV_32S: r = "32S"; break;
-        case CV_32F: r = "32F"; break;
-        case CV_64F: r = "64F"; break;
-        default:         r = "User"; break;
-    }
-
-    r += "C";
-    r += (chans+'0');
-
-    return r;
-}
-*/
-
-
-//////////////////////////////////////
-
-
-#include <iostream>
-#include <ctime>
-#include <cmath>
-#include <stdlib.h>
-#include <random>
-
-#include <ceres/rotation.h>
-
-#include "cartography.h"
-#include "geometry.h"
-#include "vision.h"
-
-#define S 200
-#define SIZE Size(S, S)
-
-using namespace std;
-extern int countCalls;
 
 class Pinhole : public Camera
 {
@@ -483,6 +219,110 @@ void compare(const vector<Vector3d> cloud1, const vector<Vector3d> cloud2)
 }
 
 int main(int argc, char** argv) {
+
+
+    // Tests of the Feautre module 
+    
+    MeiCamera * cam1mei;
+    MeiCamera * cam2mei;
+    cam1mei = new MeiCamera(1296, 966, 1.39200313135677, 8.9661425437872310e+02, 8.9401437200675650e+02, 6.5205449530360681e+02, 4.7218039655643264e+02);
+    cam2mei = new MeiCamera(1296, 966, 1.7009089913682820, 1.0102335582115433e+03, 1.0075016763931362e+03, 6.6174475465968897e+02, 4.8641648577657963e+02);
+
+    Matrix<double, 2, 3> J;
+    
+    Vector2d p1, p2;
+    Vector3d X1(1, 2, 3), X2(1.01, 2.0, 3);
+    cam1mei->projectPoint(X1, p1);
+    cam1mei->projectPoint(X2, p2);
+    cam1mei->projectionJacobian(X1, J);
+    cout << p2 - p1 << endl;
+    cout << J << endl;
+    cout << J*(X2 - X1) << endl;
+
+    const Quaternion qR(1.2819328761269129e-03,  // (x, y, z, w)
+                        -5.0470030584528022e-02,
+                        -1.9222145763661295e-03,
+                        9.9872290338813241e-01);
+    const Vector3d tR(-7.8463742913216261e-01,  // (x, y, z) OL-OR expressed in CR reference frame?
+                      -3.1213039143325322e-03,
+                      -5.2863573996665768e-02);
+
+    Transformation T1, T2(-tR, qR);
+
+    
+    
+    // init needed objects
+    
+    Extractor extr(1000, 2, 2, false, true);
+    
+    StereoCartography cartograph(T1, T2, cam1mei, cam2mei);
+    
+    Matcher matcher;
+    matcher.initStereoBins(cartograph.stereo);
+    
+    // ## THE INIT STEP ##
+    // load first pair
+    
+    string name1 = "/home/bogdan/projects/icars/img_left/frame000";
+    string name2 = "/home/bogdan/projects/icars/img_right/frame000";
+    cv::Mat img1 = cv::imread(name1 + "0.jpg", 0);
+    cv::Mat img2 = cv::imread(name2 + "0.jpg", 0);
+   
+    // extract and match features
+    vector<Feature> kpVec1, kpVec2;
+    extr(img1, kpVec1);
+    extr(img2, kpVec2);
+    
+    cout << "features : " << kpVec1.size() << " "  << kpVec2.size() << endl;
+    
+    vector<int> matchVec;
+    
+    matcher.stereoMatch(kpVec1, kpVec2, matchVec);
+    
+    // init the cloud
+    vector<Vector2d> pVec1, pVec2;
+    vector< Matrix<float, 64, 1> > descVec;
+    for (unsigned int i = 0; i < kpVec1.size(); i++)
+    {
+        const int match = matchVec[i];
+        if (match == -1) continue;
+        descVec.push_back(kpVec1[i].desc);
+        pVec1.push_back(kpVec1[i].pt);
+        pVec2.push_back(kpVec2[match].pt);        
+    }
+    
+    vector<Vector3d> cloud;
+    cartograph.stereo.reconstructPointCloud(pVec1, pVec2, cloud);
+    for (unsigned int i = 0; i < cloud.size(); i++)
+    {
+        //TODO put filtering here according to z
+        cartograph.LM.push_back(LandMark());
+        LandMark & lm = cartograph.LM.back();
+        lm.X = cloud[i];
+        lm.d = descVec[i];
+        Observation obs1(pVec1[i](0), pVec1[i](1), 0, LEFT);
+        Observation obs2(pVec2[i](0), pVec2[i](1), 0, RIGHT);
+        lm.observations.push_back(obs1);
+        lm.observations.push_back(obs2);
+        
+    }
+    cartograph.trajectory.push_back(Transformation(0, 0, 0, 0, 0, 0));
+    cout << "cloud size : " << cloud.size() << endl;
+    
+    // ## ODOMETRY ## 
+     
+    img1 = cv::imread(name1 + "5.jpg", 0);   
+    extr(img1, kpVec1);
+    Transformation xi = cartograph.estimateOdometry(kpVec1);
+
+    cout << xi << endl;
+    
+   // testStereoMatch(stereo);
+    
+    //---------------------------------
+
+
+/*
      google::InitGoogleLogging(argv[0]);
     //GeometryTest();
     Pinhole * cam1 = new Pinhole(100, 100, 100);
@@ -581,8 +421,8 @@ int main(int argc, char** argv) {
     cout << "Reconstruction time : " << double(entTime - beginTime) / CLOCKS_PER_SEC << endl;
 
     compare(cloud, cloud2);
-    
-/*****************************************/
+   
+////////////////////////////////////////////
 
 
     beginTime = clock();
@@ -609,5 +449,7 @@ int main(int argc, char** argv) {
     cout << countCalls << endl;
 
 
-
+ */
 }
+
+

@@ -18,6 +18,9 @@ add_executable( stereo
     src/geometry.cpp
     src/cartography.cpp
     src/vision.cpp
+    src/matcher.cpp
+    src/extractor.cpp
+    src/mei.cpp
 )
 
 target_link_libraries( stereo ${OpenCV_LIBS} )

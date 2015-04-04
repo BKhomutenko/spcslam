@@ -20,8 +20,8 @@ using namespace Eigen;
 void StereoSystem::projectPointCloud(const vector<Vector3d> & src,
         vector<Vector2d> & dst1, vector<Vector2d> & dst2) const
 {
-    assert(src.size() == dst1.size());
-    assert(src.size() == dst2.size());
+    dst1.resize(src.size());
+    dst2.resize(src.size());
     vector<Vector3d> Xc1(src.size()), Xc2(src.size());
     pose1.inverseTransform(src, Xc1);
     pose2.inverseTransform(src, Xc2);
@@ -59,7 +59,7 @@ void StereoSystem::reconstructPointCloud(const vector<Vector2d> & src1,
         const vector<Vector2d> & src2, vector<Vector3d> & dst) const
 {
     assert(src1.size() == src2.size());
-    assert(src1.size() == dst.size());    
+    dst.resize(src1.size());    
     
     vector<Vector3d> vVec1(src1.size()), vVec2(src1.size());
     for (unsigned int i = 0; i < src1.size(); i++)

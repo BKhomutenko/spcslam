@@ -61,7 +61,7 @@ void Matcher::bruteForce(const vector<Feature> & kpVec1, const vector<Feature> &
 void Matcher::initStereoBins(const StereoSystem & stereo)
 {
 
-    const bool debug = true;
+    const bool debug = false;
 
     const double delta = 1; //degrees
 

@@ -5,14 +5,18 @@
 #include <opencv2/nonfree/features2d.hpp>
 #include <Eigen/Eigen>
 
+using Eigen::Vector2d;
+using Eigen::Matrix;
+
 struct Feature
 {
 
-    Eigen::Vector2d pt; // representation: (x, y). TODO: change representation to (y, x) ?
-    Eigen::Matrix<float,64,1> desc;
+    Vector2d pt; // representation: (x, y). TODO: change representation to (y, x) ?
+    Matrix<float,64,1> desc;
 
     float size, angle;
 
+    Feature(const Vector2d & p, const Matrix<float,64,1> & d): pt(p) , desc(d) {}
     Feature(double x, double y, float * d): pt(x, y) , desc((float *) d) {}
     Feature(double x, double y, float * d, float size, float angle)
                 : pt(x, y) , desc((float *) d), size(size), angle(angle) {}
