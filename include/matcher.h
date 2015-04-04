@@ -1,5 +1,5 @@
-#ifndef _MATCHER_H_
-#define _MATCHER_H_
+#ifndef _SPCMAP_MATCHER_H_
+#define _SPCMAP_MATCHER_H_
 
 #include <iostream>
 

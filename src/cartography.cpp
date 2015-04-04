@@ -10,6 +10,7 @@
 #include <ceres/rotation.h>
 
 #include "geometry.h"
+#include "matcher.h"
 #include "vision.h"
 #include "cartography.h"
 
@@ -21,23 +22,6 @@ typedef Eigen::Matrix<double, 6, 1> Vector6d;
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Vector2d;
-
-struct compareVectors
-{
-    bool operator()(const Vector3d & a, const Vector3d & b)
-    {
-        if (a[0] < b[0])
-            return true;
-        else if (a[0] == b[0] and a[1] < b[1])
-            return true;
-        else if (a[0] == b[0] and a[1] == b[1] and a[2] < b[2])
-            return true;
-        else
-            return false;
-    }
-};
-
-map<Vector3d, Matrix3d, compareVectors> InteractionCash;
 
 int countCalls = 0;
 
@@ -298,8 +282,9 @@ void StereoCartography::odometryRansac(
         Transformation & xi)
 {
     assert(observationVec.size() == cloud.size());
-    assert(inlierMask.size() == cloud.size());
+    
     int numPoints = observationVec.size();
+    inlierMask.resize(numPoints);
     int numIterMax = 25;
     for (unsigned int iteration = 0; iteration < numIterMax; iteration++)
     {
@@ -370,20 +355,47 @@ void StereoCartography::odometryRansac(
         //keep the best hypothesis
     }
 }
-/*
-Transformation StereoCartography::estimateOdometry(const vector<Feature> & observationVec)
+
+Transformation StereoCartography::estimateOdometry(const vector<Feature> & featureVec)
 {
-    //Matching ###
+    //Matching
     
-        //create a vector of 3D points and corresponding descriptors (about 300)
+    int numLandmarks = LM.size();
+    int numActive = 300;
+    vector<Feature> lmFeatureVec;
     
-        //perform mathing 
-        
+    for (unsigned int i = numLandmarks - 1; i >= numLandmarks - numActive; i--)
+    {
+        lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[i].d));
+    }
+           
+    Matcher matcher;    
+    vector<int> matchVec;    
+    matcher.bruteForce(featureVec, lmFeatureVec, matchVec);
+    
+    vector<Vector3d> cloud;
+    vector<Vector2d> observationVec;
+    
+    for (unsigned int i = 0; i < featureVec.size(); i++)
+    {
+        const int match = matchVec[i];
+        if (match == -1)
+        {
+            continue;
+        }
+        observationVec.push_back(featureVec[i].pt);
+        cloud.push_back(LM[numLandmarks - match].X);
+    }
     //RANSAC
-    
+    vector<bool> inlierMask;
+    odometryRansac(
+        const vector<Vector2d> & observationVec,
+        const vector<Vector3d> & cloud,
+        vector<bool> & inlierMask,
+        Transformation & xi)
     //Final transformation computation
 }
-*/
+
 
 
 

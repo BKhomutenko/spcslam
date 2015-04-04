@@ -43,7 +43,7 @@ struct LandMark
     Vector3d X;
     
     //Feature descriptor
-    Vector4d d;
+    Vector<double, 64, 1> d;
     
     //All Vec6drealted measurements
     vector<Observation> observations;
