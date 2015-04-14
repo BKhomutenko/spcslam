@@ -76,6 +76,15 @@ Quaternion::Quaternion(const Vector3d & rot)
     }
 } 
 
+Quaternion::Quaternion(const Matrix3d & R)
+{
+	w = sqrt(1.0 + R.trace()) / 2.0;
+	double w4 = (4.0 * w);
+	x = (R(2, 1) - R(1, 2)) / w4 ;
+	y = (R(0, 2) - R(2, 0)) / w4 ;
+	z = (R(1, 0) - R(0, 1)) / w4 ;
+}
+
 Vector3d Quaternion::rotate(const Vector3d & v) const
 {
     double t1 =   w*x;

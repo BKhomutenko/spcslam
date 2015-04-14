@@ -20,12 +20,22 @@ using Eigen::Matrix3d;
 
 Matrix3d rotationMatrix(const Vector3d & v);
 
+inline Matrix3d hat(const Vector3d & u)
+{
+    Matrix3d M;
+    M << 0, -u(2), u(1),   u(2), 0, -u(0),   -u(1), u(0), 0;
+    return M;
+}
+
+
+
 class Quaternion
 {
 public:
     Quaternion() {}
     Quaternion(double x, double y, double z, double w) : data{x, y, z, w} {}
     Quaternion(const Vector3d & rot);
+    Quaternion(const Matrix3d & R);
     Vector3d rotate(const Vector3d & v) const;
     Vector3d toRotationVector() const;
     Quaternion inv() const;

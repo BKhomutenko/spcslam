@@ -36,6 +36,28 @@ public:
             Eigen::Matrix<double, 2, 3> & Jac) const = 0;
 
     virtual ~Camera() {}
+    
+    bool reconstructPointCloud(const vector<Vector2d> & src, vector<Vector3d> & dst) const
+    {
+        dst.resize(src.size());
+        bool res = true;
+        for (int i = 0; i < src.size(); i++)
+        {
+            res &= reconstructPoint(src[i], dst[i]);
+        }  
+        return res;
+    }
+    
+    bool projectPointCloud(const vector<Vector3d> & src, vector<Vector2d> & dst) const
+    {
+        dst.resize(src.size());
+        bool res = true;
+        for (int i = 0; i < src.size(); i++)
+        {
+            res &= projectPoint(src[i], dst[i]);
+        }  
+        return res;
+    }
 };
 
 class StereoSystem
@@ -54,10 +76,16 @@ public:
 
     static bool triangulate(const Eigen::Vector3d & v1, const Eigen::Vector3d & v2,
             const Eigen::Vector3d & t,  Eigen::Vector3d & X);
-    void reconstruct2(const Eigen::Vector2d & p1, const Eigen::Vector2d & p2, Eigen::Vector3d & X) const;
+    void reconstruct2(const Eigen::Vector2d & p1,
+            const Eigen::Vector2d & p2,
+            Eigen::Vector3d & X) const;
     Transformation pose1;  // pose of the left camera in the base frame
     Transformation pose2;  // pose of the right camera in the base frame
     Camera * cam1, * cam2;
 };
+
+void computeEssentialMatrix(const vector<Eigen::Vector3d> & xVec1,
+        const vector<Eigen::Vector3d> & xVec2,
+        Matrix3d & E);
 
 #endif

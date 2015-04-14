@@ -25,7 +25,7 @@ using namespace std;
 extern int countCalls;
 
 using Eigen::Vector3d;
-
+using Eigen::JacobiSVD;
 void testBins(StereoSystem & stereo)
 {
 
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
     
     MeiCamera * cam1mei;
     MeiCamera * cam2mei;
-    cam1mei = new MeiCamera(1296, 966, 1.39200313135677, 8.9661425437872310e+02, 8.9401437200675650e+02, 6.5205449530360681e+02, 4.7218039655643264e+02);
+    cam1mei = new MeiCamera(1296, 966, 1.74700, 1032.81959, 1029.55310, 654.42368, 473.74674);
     cam2mei = new MeiCamera(1296, 966, 1.7009089913682820, 1.0102335582115433e+03, 1.0075016763931362e+03, 6.6174475465968897e+02, 4.8641648577657963e+02);
 
     Matrix<double, 2, 3> J;
@@ -243,6 +243,8 @@ int main(int argc, char** argv) {
                         -5.0470030584528022e-02,
                         -1.9222145763661295e-03,
                         9.9872290338813241e-01);
+    //const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
+
     const Vector3d tR(-7.8463742913216261e-01,  // (x, y, z) OL-OR expressed in CR reference frame?
                       -3.1213039143325322e-03,
                       -5.2863573996665768e-02);
@@ -290,7 +292,43 @@ int main(int argc, char** argv) {
         pVec1.push_back(kpVec1[i].pt);
         pVec2.push_back(kpVec2[match].pt);        
     }
+    /// RECOMPUTE THE CALIBRATION
     
+    vector<Vector3d> xVec1, xVec2;
+    cam1mei->reconstructPointCloud(pVec1, xVec1);
+    cam2mei->reconstructPointCloud(pVec2, xVec2);
+    
+    Matrix3d E;
+    computeEssentialMatrix(xVec1, xVec2, E);
+    
+    Matrix3d Eold = hat(T2.trans()) * T2.rotMat();
+    Eold = Eold / Eold(2, 2);
+    cout << "old E : " << endl;
+    cout <<  Eold << endl;
+    
+    cout << xVec1[18].transpose() * E * xVec2[18] << endl;
+    cout << xVec1[18].transpose() * Eold * xVec2[18] << endl;
+    cout << "#######" << endl;
+    
+    JacobiSVD<Matrix3d> svd(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    cout << svd.singularValues() << endl;
+    
+    Matrix3d R90;
+    Matrix3d Rm90;
+    R90 << 0, -1, 0, 1, 0, 0, 0, 0, 1;
+    Rm90 << 0, 1, 0, -1, 0, 0, 0, 0, 1;
+    Matrix3d R = svd.matrixU() * Rm90 * svd.matrixV().transpose();
+    cout << "new rotation : " << endl;
+    cout << R << endl;
+    R = -svd.matrixU() * R90 * svd.matrixV().transpose();
+    Quaternion newQ(R);
+    cout << newQ << endl;
+    cout << R << endl;
+    cout << "original rotation : " << endl;
+    cout << T2.rotMat() << endl;
+    cout << "left sing vecs : " << endl;
+    cout << svd.matrixU() << endl;    
+    ///
     vector<Vector3d> cloud;
     cartograph.stereo.reconstructPointCloud(pVec1, pVec2, cloud);
     for (unsigned int i = 0; i < cloud.size(); i++)
@@ -311,7 +349,7 @@ int main(int argc, char** argv) {
     
     // ## ODOMETRY ## 
      
-    img1 = cv::imread(name1 + "5.jpg", 0);   
+    img1 = cv::imread(name1 + "0.jpg", 0);   
     extr(img1, kpVec1);
     Transformation xi = cartograph.estimateOdometry(kpVec1);
 

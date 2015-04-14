@@ -15,22 +15,62 @@ Stereo vision definition.
 #include "vision.h"
 
 using namespace std;
-using namespace Eigen;
+using Eigen::Matrix3d;
+using Eigen::Matrix;
+using Eigen::Vector2d;
+using Eigen::Vector3d;
+
+void computeEssentialMatrix(const vector<Vector3d> & xVec1,
+        const vector<Vector3d> & xVec2,
+        Matrix3d & E)
+{
+    assert(xVec1.size() == xVec2.size());
+    Matrix<double, 8, 8> AtA = Matrix<double, 8, 8>::Zero();
+    Matrix<double, 8, 1> AtB = Matrix<double, 8, 1>::Zero();
+    
+    for (unsigned int i = 0; i < xVec1.size(); i++)
+    {
+        const double & x = xVec1[i][0];
+        const double & y = xVec1[i][1];
+        const double & z = xVec1[i][2];
+        const double & u = xVec2[i][0];
+        const double & v = xVec2[i][1];
+        const double & w = xVec2[i][2];
+        Matrix<double, 1, 8> A;
+        A << x*u, x*v, x*w, y*u, y*v, y*w, z*u, z*v;
+
+        double b = -z*w;
+        AtA += A.transpose() * A;
+        AtB += A.transpose() * b;
+        if (AtA != AtA)
+        {
+            cout << i << endl << A << endl;
+        }
+    }
+    
+    cout << "E computations" << endl;
+    cout << AtA << endl << endl;
+    cout << AtB << endl;
+    
+    Matrix<double, 8, 1> H = AtA.inverse() * AtB;
+    E << H(0), H(1), H(2), H(3), H(4), H(5), H(6), H(7), 1;
+    cout << E << endl;
+}
+
 
 void StereoSystem::projectPointCloud(const vector<Vector3d> & src,
         vector<Vector2d> & dst1, vector<Vector2d> & dst2) const
 {
     dst1.resize(src.size());
     dst2.resize(src.size());
-    vector<Vector3d> Xc1(src.size()), Xc2(src.size());
-    pose1.inverseTransform(src, Xc1);
-    pose2.inverseTransform(src, Xc2);
     
-    for (unsigned int i = 0; i < src.size(); i++)
-    {
-        cam1->projectPoint(Xc1[i], dst1[i]);
-        cam2->projectPoint(Xc2[i], dst2[i]);
-    }
+    vector<Vector3d> Xc;
+    
+    pose1.inverseTransform(src, Xc);
+    cam1->projectPointCloud(Xc, dst1);
+    
+    pose2.inverseTransform(src, Xc);    
+    cam2->projectPointCloud(Xc, dst2);
 }
 
 //TODO not finished
@@ -61,12 +101,9 @@ void StereoSystem::reconstructPointCloud(const vector<Vector2d> & src1,
     assert(src1.size() == src2.size());
     dst.resize(src1.size());    
     
-    vector<Vector3d> vVec1(src1.size()), vVec2(src1.size());
-    for (unsigned int i = 0; i < src1.size(); i++)
-    {
-        cam1->reconstructPoint(src1[i], vVec1[i]);
-        cam2->reconstructPoint(src2[i], vVec2[i]);
-    }
+    vector<Vector3d> vVec1, vVec2;
+    cam1->reconstructPointCloud(src1, vVec1);
+    cam2->reconstructPointCloud(src2, vVec2);
     
     pose1.rotate(vVec1, vVec1);
     pose2.rotate(vVec2, vVec2);

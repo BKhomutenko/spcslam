@@ -35,13 +35,6 @@ inline double sinc(const double x)
     return std::sin(x)/x;
 }
 
-inline Matrix3d hat(const Vector3d & u)
-{
-    Matrix3d M;
-    M << 0, -u(2), u(1),   u(2), 0, -u(0),   -u(1), u(0), 0;
-    return M;
-}
-
 ReprojectionErrorStereo::ReprojectionErrorStereo(double u, double v,
         const Transformation & camPose,
         const Camera * const camera) 
@@ -427,10 +420,7 @@ Transformation StereoCartography::estimateOdometry(const vector<Feature> & featu
     for (unsigned int i = 0; i < featureVec.size(); i++)
     {
         const int match = matchVec[i];
-        if (match == -1)
-        {
-            continue;
-        }
+        if (match == -1) continue;
         observationVec.push_back(featureVec[i].pt);
         cloud.push_back(LM[numLandmarks  - numActive + match].X);
     }
