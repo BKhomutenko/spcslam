@@ -189,7 +189,6 @@ Transformation Transformation::inverseCompose(const Transformation & T) const
     Quaternion q1inv = q1.inv();
     res.mtrans = q1inv.rotate(T.mtrans - mtrans);
     Quaternion qres = q1inv * q2;
-    cout << qres << "#" << q1inv << "#" << q2 << endl;
     res.mrot = qres.toRotationVector();
     return res;
 }
@@ -215,7 +214,7 @@ ostream& operator<<(ostream& os, const Transformation& T)
 
 void Transformation::transform(const vector<Vector3d> & src, vector<Vector3d> & dst) const
 {
-    assert(src.size() == dst.size());
+    dst.resize(src.size());
     rotate(src, dst);
     for (auto & v : dst)
     {
@@ -225,7 +224,7 @@ void Transformation::transform(const vector<Vector3d> & src, vector<Vector3d> & 
 
 void Transformation::inverseTransform(const vector<Vector3d> & src, vector<Vector3d> & dst) const
 {
-    assert(src.size() == dst.size());
+    dst.resize(src.size());
     for (unsigned int i = 0; i < src.size(); i++)
     {
         dst[i] = src[i] - mtrans;
@@ -235,7 +234,7 @@ void Transformation::inverseTransform(const vector<Vector3d> & src, vector<Vecto
 
 void Transformation::rotate(const vector<Vector3d> & src, vector<Vector3d> & dst) const
 {
-    assert(src.size() == dst.size());
+    dst.resize(src.size());
     Matrix3d R = rotMat();
     for (unsigned int i = 0; i < src.size(); i++)
     {
@@ -245,7 +244,7 @@ void Transformation::rotate(const vector<Vector3d> & src, vector<Vector3d> & dst
 
 void Transformation::inverseRotate(const vector<Vector3d> & src, vector<Vector3d> & dst) const
 {
-    assert(src.size() == dst.size());
+    dst.resize(src.size());
     Matrix3d R = rotMat();
     R.transposeInPlace();
     for (unsigned int i = 0; i < src.size(); i++)

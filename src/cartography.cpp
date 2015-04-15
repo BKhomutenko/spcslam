@@ -157,17 +157,16 @@ void MapInitializer::compute()
 //    options.function_tolerance = 1e-3;
 //    options.gradient_tolerance = 1e-4;
 //    options.parameter_tolerance = 1e-4;
-    options.minimizer_progress_to_stdout = true;
+//    options.minimizer_progress_to_stdout = true;
     Solver::Summary summary;
     Solve(options, &problem, &summary);
-    cout << summary.FullReport();
 }
 
 void StereoCartography::projectPointCloud(const vector<Vector3d> & src,
         vector<Vector2d> & dst1, vector<Vector2d> & dst2, int poseIdx) const
 {
-    assert(src.size() == dst1.size());
-    assert(src.size() == dst2.size());
+    dst1.resize(src.size());
+    dst2.resize(src.size());
     vector<Vector3d> Xb(src.size());
     trajectory[poseIdx].inverseTransform(src, Xb);
     stereo.projectPointCloud(Xb, dst1, dst2);
@@ -388,7 +387,7 @@ void StereoCartography::odometryRansac(
         //keep the best hypothesis
         if (countInliers > bestInliers)
         {
-            cout << "improvement "  << countInliers << " " <<  bestInliers << endl;
+            //cout << "improvement "  << countInliers << " " <<  bestInliers << endl;
             //TODO copy in a bettegit lor way
             inlierMask = currentInlierMask;
             bestInliers = countInliers;

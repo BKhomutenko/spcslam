@@ -21,6 +21,7 @@ add_executable( stereo
     src/matcher.cpp
     src/extractor.cpp
     src/mei.cpp
+    src/tests/cartography_tests.cpp
 )
 
 target_link_libraries( stereo ${OpenCV_LIBS} )
