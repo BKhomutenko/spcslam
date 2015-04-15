@@ -22,8 +22,7 @@ class Camera
 {
 public:
 
-    unsigned int imageWidth;
-    unsigned int imageHeight;
+    unsigned int width, height;
 
     /// takes raw image points and apply undistortion model to them
     virtual bool reconstructPoint(const Eigen::Vector2d & src, Eigen::Vector3d & dst) const = 0;
@@ -34,6 +33,8 @@ public:
     //TODO implement the projection and distortion Jacobian
     virtual bool projectionJacobian(const Eigen::Vector3d & src,
             Eigen::Matrix<double, 2, 3> & Jac) const = 0;
+
+    Camera(unsigned int W, unsigned int H) : width(W), height(H) {}
 
     virtual ~Camera() {}
     

@@ -15,13 +15,9 @@ public:
     double u0;
     double v0;
 
-    MeiCamera(unsigned int imageWidth, unsigned int imageHeight, double alpha, double fu, double fv, double u0, double v0)
-    : alpha(alpha), fu(fu), fv(fv), u0(u0), v0(v0)
-    {
-        beta = 1.2;
-        this->imageHeight = imageHeight;
-        this->imageWidth = imageWidth;
-    }
+    MeiCamera(unsigned int W, unsigned int H,
+             double alpha, double beta, double fu, double fv, double u0, double v0)
+    : Camera(W, H), alpha(alpha), beta(beta), fu(fu), fv(fv), u0(u0), v0(v0) {}
 
      /// takes raw image points and apply undistortion model to them
     virtual bool reconstructPoint(const Eigen::Vector2d & src, Eigen::Vector3d & dst) const;

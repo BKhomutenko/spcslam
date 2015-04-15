@@ -30,7 +30,7 @@ public:
     double u0, v0, f;
 
     Pinhole(double u0, double v0, double f)
-    : u0(u0), v0(v0), f(f) {}
+    : u0(u0), v0(v0), f(f), Camera(2*u0, 2*v0) {}
     virtual ~Pinhole() {}
 
     virtual bool reconstructPoint(const Vector2d & src, Vector3d & dst) const
@@ -140,8 +140,8 @@ void testGeometry()
 
 void testVision()
 {
-    MeiCamera * cam1mei = new MeiCamera(1296, 966, 0.5, 1000, 1000, 650, 470);
-    MeiCamera * cam2mei = new MeiCamera(1296, 966, 0.5, 1000, 1000, 650, 470);
+    MeiCamera * cam1mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
+    MeiCamera * cam2mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
     
     const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
@@ -167,7 +167,7 @@ void testVision()
 
 void testMei()
 {
-    MeiCamera cam1mei(1296, 966, 1.7, 1000, 1000, 650, 470);
+    MeiCamera cam1mei(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
     
     for (int i = -3; i < 3; i++)
     {
@@ -195,8 +195,8 @@ void testMei()
 
 void testBundleAdjustment()
 {
-    MeiCamera * cam1mei = new MeiCamera(1296, 966, 1.7, 1000, 1000, 650, 470);
-    MeiCamera * cam2mei = new MeiCamera(1296, 966, 1.7, 1000, 1000, 650, 470);
+    MeiCamera * cam1mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
+    MeiCamera * cam2mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
     const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
     Transformation T1, T2(tR, qR);
@@ -255,8 +255,8 @@ void testBundleAdjustment()
 
 void testOdometry()
 {
-    MeiCamera * cam1mei = new MeiCamera(1296, 966, 1.7, 1000, 1000, 650, 470);
-    MeiCamera * cam2mei = new MeiCamera(1296, 966, 1.7, 1000, 1000, 650, 470);
+    MeiCamera * cam1mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
+    MeiCamera * cam2mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
     
     const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
