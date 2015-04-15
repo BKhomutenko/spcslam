@@ -140,15 +140,15 @@ void testGeometry()
 
 void testVision()
 {
-    MeiCamera * cam1mei = new MeiCamera(1296, 966, 1.7, 1000, 1000, 650, 470);
-    MeiCamera * cam2mei = new MeiCamera(1296, 966, 1.7, 1000, 1000, 650, 470);
+    MeiCamera * cam1mei = new MeiCamera(1296, 966, 0.5, 1000, 1000, 650, 470);
+    MeiCamera * cam2mei = new MeiCamera(1296, 966, 0.5, 1000, 1000, 650, 470);
     
     const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
     Transformation T1, T2(tR, qR);
     StereoSystem stereo(T1, T2, cam1mei, cam2mei);
     
-    int maxNum = 250;
+    int maxNum = 15;
     
     vector<Vector2d> proj1, proj2;
     vector<Vector3d> cloud1, cloud2;
@@ -169,22 +169,22 @@ void testMei()
 {
     MeiCamera cam1mei(1296, 966, 1.7, 1000, 1000, 650, 470);
     
-    for (unsigned int i = -3; i < 3; i++)
+    for (int i = -3; i < 3; i++)
     {
-        for (unsigned int j = -3; j < 3; j++)
+        for (int j = -3; j < 3; j++)
         {
             Vector3d X1(i, j, 3);
             Matrix<double, 2, 3> J;
             Vector2d p1, p2;
             cam1mei.projectPoint(X1, p1);
             cam1mei.projectionJacobian(X1, J);
-            for (unsigned int k = 0; k < 3; k++)
+            for (int k = 0; k < 3; k++)
             {
                Vector3d dX = Vector3d::Zero();
-               dX(k) = EPS; 
+               dX(k) = 100*EPS; 
                cam1mei.projectPoint(X1 + dX, p2);
-               Vector2d dp = (p2 - p1) / EPS;
-               Vector2d Jdx = J*dX / EPS;
+               Vector2d dp = (p2 - p1);
+               Vector2d Jdx = J*dX;
                assertEqual(dp, Jdx);
                dX(k) = 0; 
             }
@@ -303,12 +303,12 @@ void testCartography()
     testGeometry();
     cout << "OK" << endl;
     
-    cout << "### Vision tests ### " << flush;
-    testVision();
-    cout << "OK" << endl;
-    
     cout << "### Mei tests ### " << flush;
     testMei();
+    cout << "OK" << endl;
+    
+    cout << "### Stereo tests ### " << flush;
+    testVision();
     cout << "OK" << endl;
     
     cout << "### Odometry tests ### " << flush;

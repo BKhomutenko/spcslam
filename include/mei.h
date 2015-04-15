@@ -8,16 +8,17 @@
 class MeiCamera : public Camera
 {
 public:
-
-    double xi;
+    double alpha;
+    double beta;
     double fu;
     double fv;
     double u0;
     double v0;
 
-    MeiCamera(unsigned int imageWidth, unsigned int imageHeight, double xi, double fu, double fv, double u0, double v0)
-    : xi(xi), fu(fu), fv(fv), u0(u0), v0(v0)
+    MeiCamera(unsigned int imageWidth, unsigned int imageHeight, double alpha, double fu, double fv, double u0, double v0)
+    : alpha(alpha), fu(fu), fv(fv), u0(u0), v0(v0)
     {
+        beta = 1.2;
         this->imageHeight = imageHeight;
         this->imageWidth = imageWidth;
     }
