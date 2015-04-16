@@ -13,7 +13,7 @@ FIND_PACKAGE(Ceres REQUIRED)
 INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
 
 include_directories(include)
-add_executable( stereo 
+add_executable( stereo
     src/main.cpp
     src/geometry.cpp
     src/cartography.cpp
@@ -22,6 +22,7 @@ add_executable( stereo
     src/extractor.cpp
     src/mei.cpp
     src/tests/cartography_tests.cpp
+    src/tests/matching_tests.cpp
 )
 
 target_link_libraries( stereo ${OpenCV_LIBS} )

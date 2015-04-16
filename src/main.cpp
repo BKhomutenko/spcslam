@@ -1,4 +1,6 @@
 #include "tests/cartography_tests.h"
+#include "tests/matching_tests.h"
+
 #include <opencv2/opencv.hpp>
 
 
@@ -90,7 +92,8 @@ void addResidual(const string & fileName, Problem & problem,
 int main(int argc, char** argv) {
 
     testCartography();
-    
+    testMatching();
+    /*
     //TRY CALIBRATION FUNCTIONS
     
     double params[6]{0, 0, 1000, 1000, 650, 450}, 
@@ -142,7 +145,7 @@ int main(int argc, char** argv) {
     for (unsigned int i = 0; i < 6; i++)
     {
         cout << xi2[i] << " ";
-    }
+    }*/
     return 0;
 
 //    
