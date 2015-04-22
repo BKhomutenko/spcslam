@@ -16,14 +16,29 @@ class Matcher
 {
 public:
 
+    enum BFType { simple, oneToOne };
+
+    double bfDistTh = 1000;
+    double binDelta = 1; //degrees
+
     Eigen::MatrixXi binMapL;
     Eigen::MatrixXi binMapR;
 
-    void bruteForce(const vector<Feature> & kpVec1, const vector<Feature> & kpVec2, vector<int> & matches);
+    void bruteForce(const vector<Feature> & fVec1,
+                    const vector<Feature> & fVec2,
+                    vector<int> & matches);
 
-    void stereoMatch(const vector<Feature> & kpVec1, const vector<Feature> & kpVec2, vector<int> & matches);
+    void bruteForceOneToOne(const vector<Feature> & fVec1,
+                            const vector<Feature> & fVec2,
+                            vector<int> & matches);
 
-    void matchReprojected(const vector<Feature> & kpVec1, const vector<Feature> & kpVec2, vector<int> & matches);
+    void stereoMatch(const vector<Feature> & fVec1,
+                     const vector<Feature> & fVec2,
+                     vector<int> & matches);
+
+    void matchReprojected(const vector<Feature> & fVec1,
+                          const vector<Feature> & fVec2,
+                          vector<int> & matches);
 
     void initStereoBins(const StereoSystem & stereo);
 

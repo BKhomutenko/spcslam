@@ -9,42 +9,36 @@
 
 
 using namespace std;
-using Eigen::Matrix3d;
-//using namespace cv;
-void Matcher::bruteForce(const vector<Feature> & kpVec1, const vector<Feature> & kpVec2, vector<int> & matches)
+
+void Matcher::bruteForce(const vector<Feature> & fVec1,
+                         const vector<Feature> & fVec2,
+                         vector<int> & matches)
 {
 
-    const int N1 = kpVec1.size();
-    const int N2 = kpVec2.size();
-
-    vector<double> bestDists(N1);
+    const int N1 = fVec1.size();
+    const int N2 = fVec2.size();
 
     matches.resize(N1);
 
     for (int i = 0; i < N1; i++)
     {
         matches[i] = -1;
-        bestDists[i] = 0.2;
-    }
+        int tempMatch = -1;
+        double bestDist = 1000000;
 
-    for (int j = 0; j < N2; j++)
-    {
-        double bestDist = 0.2;
-        int iTempMatch = 0;
-        for (int i = 0; i < N1 ; i++)
+        for (int j = 0; j < N2 ; j++)
         {
-            double dist = (kpVec1[i].desc - kpVec2[j].desc).norm();
-            //cout << "dist=" << dist << endl;
+            double dist = (fVec1[i].desc - fVec2[j].desc).norm();
+
             if (dist < bestDist)
             {
                 bestDist = dist;
-                iTempMatch = i;
+                tempMatch = j;
             }
         }
-        if (bestDist < bestDists[iTempMatch])
+        if (bestDist < bfDistTh)
         {
-            matches[iTempMatch] = j;
-            bestDists[iTempMatch] = bestDist;
+            matches[i] = tempMatch;
         }
     }
 
@@ -55,17 +49,33 @@ void Matcher::bruteForce(const vector<Feature> & kpVec1, const vector<Feature> &
 
 }
 
-//TODO: create the Camera objects and the StereoSystem object (with their parameters)
-//            somewhere else and pass references to this function to access the parameters
-//            and the member functions
+void Matcher::bruteForceOneToOne(const vector<Feature> & fVec1,
+                                 const vector<Feature> & fVec2,
+                                 vector<int> & matches)
+{
+    const int N1 = fVec1.size();
+    const int N2 = fVec2.size();
+
+    vector<int> matches2(N2, -1);
+
+    bruteForce(fVec1, fVec2, matches);
+    bruteForce(fVec2, fVec1, matches2);
+
+    for (int i = 0; i < N1; i++)
+    {
+        if (matches[i] > -1 && matches2[matches[i]] != i)
+        {
+            matches[i] = -1;
+        }
+    }
+}
+
 void Matcher::initStereoBins(const StereoSystem & stereo)
 {
 
     const bool debug = false;
 
-    const double delta = 1; //degrees
-
-    const double pi = std::atan(1)*4; // move this in geometry.h ?
+    const double pi = std::atan(1)*4;
 
 /*
     // theta: rotation angle for R -> L (R reference frame)
@@ -85,11 +95,11 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
 
     Matrix3d R, RSigma, RPhi, RTot;
 
-    // R now is rotation matrix L -> R
-    R = stereo.pose1.rotMat();
+    // R is rotation matrix L -> R
+    R = stereo.pose2.rotMat();
 
     // t: translation vector from L -> R (L reference frame)
-    Eigen::Vector3d t = stereo.pose1.trans();
+    Eigen::Vector3d t = stereo.pose2.trans();
 
     double sigma = std::atan2(-t(1), std::sqrt(t(0)*t(0) + t(2)*t(2)));
     double phi = std::atan2(t(2), t(0));
@@ -121,8 +131,8 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
             double alfa = std::atan2(v2(1), v2(2))*180/pi;
 
             int bin;
-            if (debug) { bin = alfa/delta; }
-            else { bin = std::floor(alfa/delta); }
+            if (debug) { bin = alfa/binDelta; }
+            else { bin = std::floor(alfa/binDelta); }
 
             binMapL(i,j) = bin;
         }
@@ -141,8 +151,8 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
             double alfa = std::atan2(v2(1), v2(2))*180/pi;
 
             int bin;
-            if (debug) { bin = alfa/delta; }
-            else { bin = std::floor(alfa/delta); }
+            if (debug) { bin = alfa/binDelta; }
+            else { bin = std::floor(alfa/binDelta); }
 
             binMapR(i,j) = bin;
         }
@@ -156,37 +166,48 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
         cout << endl << "RPhi:" << endl << RPhi << endl;
         cout << endl << "RSigma:" << endl << RSigma << endl;
         cout << endl << "RTot:" << endl << RTot << endl;
+        //cout << "binMapL(center)= " << binMapL(stereo.cam1->u0, stereo.cam1->v0) << endl;
+        //cout << "binMapR(center)= " << binMapR(stereo.cam2->u0, stereo.cam2->v0) << endl;
     }
 }
 
-void Matcher::stereoMatch(const vector<Feature> & kpVecL, const vector<Feature> & kpVecR,
+void Matcher::stereoMatch(const vector<Feature> & fVec1,
+                          const vector<Feature> & fVec2,
 			  vector<int> & matches)
 {
 
-    const int NL = kpVecL.size();
-    const int NR = kpVecR.size();
+    const bool debug = false;
 
-    const double distTh = 0.2; //TODO to the class member
+    const int N1 = fVec1.size();
+    const int N2 = fVec2.size();
 
-    vector<double> bestDists(NL, distTh);
+    const double distTh = 0.2;
 
-    matches.resize(NL);
+    vector<double> bestDists(N1, distTh);
 
-    for (int i = 0; i < NL; i++)
-    {
-        matches[i] = -1;
-    }
+    matches.resize(N1);
 
-    for (int j = 0; j < NR; j++)
+    for (int i = 0; i < N1; i++) { matches[i] = -1; }
+
+    for (int j = 0; j < N2; j++)
     {
         double bestDist = distTh;
         int iTempMatch = 0;
 
-        for (int i = 0; i < NL ; i++)
+        if (debug)
         {
-            if (abs(binMapL(kpVecL[i].pt(1), kpVecL[i].pt(0)) - binMapR(kpVecR[j].pt(1), kpVecR[j].pt(0))) <= 1)
+            int binDiff = binMapL(round(fVec1[j].pt(1)), round(fVec1[j].pt(0))) -
+                          binMapR(round(fVec2[j].pt(1)), round(fVec2[j].pt(0)));
+            if (binDiff != 0)
+                cout << "j=" << j << " binDiff=" << binDiff << endl;
+        }
+
+        for (int i = 0; i < N1 ; i++)
+        {
+            if (abs(binMapL(round(fVec1[i].pt(1)), round(fVec1[i].pt(0))) -
+                    binMapR(round(fVec2[j].pt(1)), round(fVec2[j].pt(0)))) <= 1)
             {
-                double dist = (kpVecL[i].desc - kpVecR[j].desc).norm();
+                double dist = (fVec1[i].desc - fVec2[j].desc).norm();
 
                 if (dist < bestDist)
                 {
@@ -209,13 +230,13 @@ void Matcher::stereoMatch(const vector<Feature> & kpVecL, const vector<Feature> 
 
 }
 
-void Matcher::matchReprojected(const vector<Feature> & kpVec1,
-		               const vector<Feature> & kpVec2,
+void Matcher::matchReprojected(const vector<Feature> & fVec1,
+		               const vector<Feature> & fVec2,
 		               vector<int> & matches)
 {
 
-    const int N1 = kpVec1.size();
-    const int N2 = kpVec2.size();
+    const int N1 = fVec1.size();
+    const int N2 = fVec2.size();
 
     vector<double> bestScores(N1, 2);
 
@@ -237,8 +258,8 @@ void Matcher::matchReprojected(const vector<Feature> & kpVec1,
         for (int i = 0; i < N1 ; i++)
         {
 
-            double descDist = (kpVec1[i].desc - kpVec2[j].desc).norm();
-            double spaceDist = (kpVec1[i].pt - kpVec2[j].pt).norm();
+            double descDist = (fVec1[i].desc - fVec2[j].desc).norm();
+            double spaceDist = (fVec1[i].pt - fVec2[j].pt).norm();
             double score = alfa * descDist + beta * spaceDist;
 
             if (score < bestScore)

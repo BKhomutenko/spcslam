@@ -18,9 +18,9 @@ add_executable( stereo
     src/geometry.cpp
     src/cartography.cpp
     src/vision.cpp
+    src/mei.cpp
     src/matcher.cpp
     src/extractor.cpp
-    src/mei.cpp
     src/tests/cartography_tests.cpp
     src/tests/matching_tests.cpp
 )
