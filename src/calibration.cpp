@@ -129,16 +129,18 @@ void IntrinsicCalibrationData::residualAnalysis(const array<double, 6> & intrins
             BoardProjection * boardProj = residualVec[resIdx];
             (*boardProj)(params, residual.data());
             Mat frame = imread(fileNameVec[resIdx], 0);
+            bool outlierDetected = false;
             for (unsigned int i = 0; i < Nx * Ny; i++)
             {
                 Vector2d p = boardProj->_proj[i];
                 Vector2d dp(residual[2 * i], residual[2 * i + 1]);
                 p -= dp;
-                circle(frame, Point(p(0), p(1)), 2, 128, 2);
+                circle(frame, Point(p(0), p(1)), 4.5, 255, 2);
                 double dx = residual[2 * i] * residual[2 * i];
                 double dy = residual[2 * i + 1] * residual[2 * i + 1];
                 if (outlierThresh != 0 and dx + dy > outlierThresh * outlierThresh)
                 {
+                    outlierDetected = true;
                     cout << fileNameVec[resIdx] << " # " << i << endl;
                     cout << residual[2 * i] << " " << residual[2 * i + 1] << endl;
                 }
@@ -149,8 +151,11 @@ void IntrinsicCalibrationData::residualAnalysis(const array<double, 6> & intrins
                 Ex += dx;
                 Ey += dy;
             }
-            imshow("reprojection", frame);
-            waitKey();
+            if (outlierDetected)
+            {
+                imshow("reprojection", frame);
+                waitKey();
+            }
     }
     Ex /= residualVec.size() * Nx * Ny;
     Ey /= residualVec.size() * Nx * Ny;
@@ -217,14 +222,14 @@ bool extractGridProjection(const string & fileName, int Nx, int Ny, vector<Vecto
         return false;
     }
     
-    drawChessboardCorners(frame, patternSize, Mat(centers), patternIsFound);
-    imshow("corners", frame);
-    char key = waitKey();
-    if (key == 'n' or key == 'N')
-    {
-        cout << fileName << " : ERROR, pattern is not accepted" << endl;
-        return false; 
-    }   
+//    drawChessboardCorners(frame, patternSize, Mat(centers), patternIsFound);
+//    imshow("corners", frame);
+//    char key = waitKey();
+//    if (key == 'n' or key == 'N')
+//    {
+//        cout << fileName << " : ERROR, pattern is not accepted" << endl;
+//        return false; 
+//    }   
     pointVec.resize(Nx * Ny);
     for (unsigned int i = 0; i < Nx * Ny; i++)
     {
@@ -362,8 +367,8 @@ void intrinsicCalibration(const string & infoFileName, array<double, 6> & intrin
     //run the solver
     Solver::Options options;
     options.max_num_iterations = 500;
-    options.numeric_derivative_relative_step_size = 1e-3;
-    options.linear_solver_type = ceres::DENSE_QR;
+    options.numeric_derivative_relative_step_size = 1e-4;
+    //options.linear_solver_type = ceres::DENSE_QR;
     options.function_tolerance = 1e-10;
     options.gradient_tolerance = 1e-10;
     options.parameter_tolerance = 1e-10;
