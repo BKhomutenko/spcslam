@@ -109,7 +109,7 @@ IntrinsicCalibrationData::IntrinsicCalibrationData(const string & infoFileName)
         {
             BoardProjection * boardProj = new BoardProjection(pointVec, original);
             residualVec.push_back(boardProj);
-            array<double, 6> xi = {-0.1, -0.1, 0.5, 0.1, 0.1, 0.1};
+            array<double, 6> xi = {-0.1, -0.1, 0.2, 0.1, 0.1, 0.1};
             extrinsicVec.push_back(xi);
             fileNameVec.push_back(imageFolder + imageName);
         }

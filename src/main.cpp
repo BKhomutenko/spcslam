@@ -16,28 +16,30 @@ int main(int argc, char** argv) {
     
     array<double, 6> par1{0.1, 0.1, 500, 500, 650, 450}, par2{0.1, 0.1, 500, 500, 650, 450};
     array<double, 6> xi{1, 0.1, 0.1, 0.1, 0.1, 0.1};
-    intrinsicCalibration("calibInfoLeft.txt", par1);
-    intrinsicCalibration("calibInfoRight.txt", par2);
+//    intrinsicCalibration("calibInfoLeft.txt", par1);
+//    intrinsicCalibration("calibInfoRight.txt", par2);
+//    
+////    cout << "Intrinsic 1 : " << endl;
+////    cout << par1[0] << " " << par1[1] << " " << par1[2] << endl;
+////    cout << par1[3] << " " << par1[4] << " " << par1[5] << endl;
+//    cout << "Intrinsic 2: " << endl;
+//    cout << par2[0] << " " << par2[1] << " " << par2[2] << endl;
+//    cout << par2[3] << " " << par2[4] << " " << par2[5] << endl;
     
+    extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
+            par1, par2, xi);
+    
+    cout << "Extrinsic : " << endl;
+    cout << xi[0] << " " << xi[1] << " " << xi[2] << endl;
+    cout << xi[3] << " " << xi[4] << " " << xi[5] << endl;
     cout << "Intrinsic 1 : " << endl;
     cout << par1[0] << " " << par1[1] << " " << par1[2] << endl;
     cout << par1[3] << " " << par1[4] << " " << par1[5] << endl;
-    cout << "Intrinsic 2: " << endl;
+    cout << "Intrinsic 2 : " << endl;
     cout << par2[0] << " " << par2[1] << " " << par2[2] << endl;
     cout << par2[3] << " " << par2[4] << " " << par2[5] << endl;
     
-//    extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
-//            par1, par2, xi);
-//    
-//    cout << "Extrinsic : " << endl;
-//    cout << xi[0] << " " << xi[1] << " " << xi[2] << endl;
-//    cout << xi[3] << " " << xi[4] << " " << xi[5] << endl;
-//    cout << "Intrinsic 1 : " << endl;
-//    cout << par1[0] << " " << par1[1] << " " << par1[2] << endl;
-//    cout << par1[3] << " " << par1[4] << " " << par1[5] << endl;
-//    cout << "Intrinsic 2 : " << endl;
-//    cout << par2[0] << " " << par2[1] << " " << par2[2] << endl;
-//    cout << par2[3] << " " << par2[4] << " " << par2[5] << endl;
+    
     // Extrinsic calibration using epipolar geometry
     
     /*MeiCamera cam1mei(1296, 966, 0.579728, 1.13265, 372.661, 372.312, 655.471, 473.135);
