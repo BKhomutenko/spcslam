@@ -312,7 +312,7 @@ void StereoCartography::odometryRansac(
 //        cout << endl;
         pose = initialPose;        
         //compute xi using these points
-        for (unsigned int i = 0; i < 50; i++)
+        for (unsigned int i = 0; i < 10; i++)
         {
             double theta = pose.rot().norm();
             Matrix3d uhat = hat(pose.rot());

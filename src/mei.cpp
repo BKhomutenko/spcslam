@@ -32,9 +32,6 @@ bool MeiCamera::reconstructPoint(const Eigen::Vector2d & src, Eigen::Vector3d & 
 
     double xn = (src(0) - u0) / fu;
     double yn = (src(1) - v0) / fv;
-
-    /*double k = xn * xn + yn * yn;
-    double m = (xi + std::sqrt((double)1 + (1 - xi * xi) * k)) / (k + 1);*/
     
     double u2 = xn * xn + yn * yn;
     double gamma = 1 - alpha;    
@@ -46,7 +43,7 @@ bool MeiCamera::reconstructPoint(const Eigen::Vector2d & src, Eigen::Vector3d & 
     
     double r = B + sqrt(D1);
     
-    double denom = -gamma*A + alpha*sqrt(A*A +(beta  * r * r));
+    double denom = -gamma*A + alpha*sqrt(A*A + (beta  * r * r));
     dst << xn*denom, yn*denom, -A;
 
     return true;
