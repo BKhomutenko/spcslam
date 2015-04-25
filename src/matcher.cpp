@@ -105,16 +105,16 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
     Eigen::Vector2d p;
     Eigen::Vector3d v;
 
-    binMapL.resize(stereo.cam1->height, stereo.cam1->width);
-    binMapR.resize(stereo.cam2->height, stereo.cam2->width);
+    binMapL.resize(stereo.cam1.height, stereo.cam1.width);
+    binMapR.resize(stereo.cam2.height, stereo.cam2.width);
 
     // compute bin map for left camera
-    for (int i=0; i<stereo.cam1->height; i++)
+    for (int i=0; i<stereo.cam1.height; i++)
     {
-        for (int j=0; j<stereo.cam1->width; j++)
+        for (int j=0; j<stereo.cam1.width; j++)
         {
             p << j, i;
-            stereo.cam1->reconstructPoint(p, v);
+            stereo.cam1.reconstructPoint(p, v);
             Eigen::Vector3d v2;
             v2 = RTot * v;
 
@@ -129,12 +129,12 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
     }
 
     // compute bin map for right camera
-    for (int i=0; i<stereo.cam2->height; i++)
+    for (int i=0; i<stereo.cam2.height; i++)
     {
-        for (int j=0; j<stereo.cam2->width; j++)
+        for (int j=0; j<stereo.cam2.width; j++)
         {
             p << j, i;
-            stereo.cam2->reconstructPoint(p, v);
+            stereo.cam2.reconstructPoint(p, v);
             Eigen::Vector3d v2;
             v2 = RTot * R * v;
 

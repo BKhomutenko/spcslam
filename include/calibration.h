@@ -8,35 +8,40 @@ The calibration system for a generic camera
 #include <Eigen/Eigen>
 #include <vector>
 
+#include "vision.h"
+
 using namespace std;
 
 //TODO create a stereo calibration object that keeps all the necessary information
 
 struct BoardProjection 
 {    
-    BoardProjection(const vector<Eigen::Vector2d> & proj, const vector<Eigen::Vector3d> & orig)
-    : _proj(proj), _orig(orig) {}
+    BoardProjection(const vector<Eigen::Vector2d> & proj, const vector<Eigen::Vector3d> & orig,
+            Camera & camera) : _proj(proj), _orig(orig), _camera(camera) {}
     
     virtual bool operator()(const double * const * parameters, double * residual) const;
     
+    Camera & _camera;
     vector<Eigen::Vector2d> _proj;
     vector<Eigen::Vector3d> _orig;
 };
 
 struct StereoBoardProjection 
 {
-    StereoBoardProjection(const vector<Eigen::Vector2d> & proj, const vector<Eigen::Vector3d> & orig)
-    : _proj(proj), _orig(orig) {}
+    StereoBoardProjection(const vector<Eigen::Vector2d> & proj,
+             const vector<Eigen::Vector3d> & orig, Camera & camera) 
+             : _proj(proj), _orig(orig), _camera(camera) {}
     
     bool operator()(const double * const * parameters, double * residual) const;
     
+    Camera & _camera;
     vector<Eigen::Vector2d> _proj;
     vector<Eigen::Vector3d> _orig;
 };
 
 struct IntrinsicCalibrationData
 {
-    IntrinsicCalibrationData(const string & infoFileName);
+    IntrinsicCalibrationData(const string & infoFileName, Camera & camera);
     
     int Nx, Ny;
     double sqSize;
@@ -45,13 +50,13 @@ struct IntrinsicCalibrationData
     vector<string> fileNameVec;
     vector< array<double, 6> > extrinsicVec;
     
-    void residualAnalysis(const array<double, 6> & intrinsic);
+    void residualAnalysis(const vector<double> & intrinsic);
 };
 
 //TODO add the residual analysis
 struct ExtrinsicCalibrationData
 {
-    ExtrinsicCalibrationData(const string & infoFileName);
+    ExtrinsicCalibrationData(const string & infoFileName, Camera & camera1, Camera & camera2);
     
     int Nx, Ny;
     double sqSize;
@@ -62,18 +67,16 @@ struct ExtrinsicCalibrationData
     vector< array<double, 6> > extrinsicVec;
 };
 
-void intrinsicCalibration(const string & infoFileName, array<double, 6> & parameters);
+void intrinsicCalibration(const string & infoFileName, Camera & camera);
 
 void extrinsicStereoCalibration(const string & infoFileName1, const string & infoFileName2,
-         const string & infoFileNameStereo, array<double, 6> & intrinsic1, 
-         array<double, 6> & intrinsic2, array<double, 6> & extrinsic);
+         const string & infoFileNameStereo, Camera & cam1, Camera & cam2, Transformation & T);
 
 bool extractGridProjection(const string & fileName,
         int Nx, int Ny, vector<Eigen::Vector2d> & pointVec);
         
 void generateOriginal(int Nx, int Ny, double sqSize, vector<Eigen::Vector3d> & pointVec);
 
-double logistic(double x);
 
 #endif
 

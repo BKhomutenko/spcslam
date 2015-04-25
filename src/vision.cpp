@@ -67,10 +67,10 @@ void StereoSystem::projectPointCloud(const vector<Vector3d> & src,
     vector<Vector3d> Xc;
     
     pose1.inverseTransform(src, Xc);
-    cam1->projectPointCloud(Xc, dst1);
+    cam1.projectPointCloud(Xc, dst1);
     
     pose2.inverseTransform(src, Xc);    
-    cam2->projectPointCloud(Xc, dst2);
+    cam2.projectPointCloud(Xc, dst2);
 }
 
 //TODO not finished
@@ -102,8 +102,8 @@ void StereoSystem::reconstructPointCloud(const vector<Vector2d> & src1,
     dst.resize(src1.size());    
     
     vector<Vector3d> vVec1, vVec2;
-    cam1->reconstructPointCloud(src1, vVec1);
-    cam2->reconstructPointCloud(src2, vVec2);
+    cam1.reconstructPointCloud(src1, vVec1);
+    cam2.reconstructPointCloud(src2, vVec2);
     
     pose1.rotate(vVec1, vVec1);
     pose2.rotate(vVec2, vVec2);
@@ -114,14 +114,6 @@ void StereoSystem::reconstructPointCloud(const vector<Vector2d> & src1,
         triangulate(vVec1[i], vVec2[i], t, X);
         X += pose1.trans();
     }
-}
-
-StereoSystem::~StereoSystem()
-{
-    if (cam1)
-        delete cam1;
-    if (cam2)
-        delete cam2;
 }
 
 ////TODO make smart constructor with calibration data passed

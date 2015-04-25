@@ -27,14 +27,21 @@ using Eigen::Vector2d;
 class Pinhole : public Camera
 {
 public:
-    double u0, v0, f;
 
     Pinhole(double u0, double v0, double f)
-    : u0(u0), v0(v0), f(f), Camera(2*u0, 2*v0) {}
+    : Camera(2*u0, 2*v0, 3) 
+    {
+        params[0] = u0;
+        params[1] = v0;
+        params[2] = f;
+    }
     virtual ~Pinhole() {}
 
     virtual bool reconstructPoint(const Vector2d & src, Vector3d & dst) const
     {
+        const double & u0 = params[0];
+        const double & v0 = params[1];
+        const double & f = params[2];
         const double & u = src(0);
         const double & v = src(1);
         dst << (u - u0)/f, (v - v0)/f, 1;
@@ -44,6 +51,9 @@ public:
     /// projects 3D points onto the original image
     virtual bool projectPoint(const Vector3d & src, Vector2d & dst) const
     {
+        const double & u0 = params[0];
+        const double & v0 = params[1];
+        const double & f = params[2];
         const double & x = src(0);
         const double & y = src(1);
         const double & z = src(2);
@@ -59,6 +69,9 @@ public:
     //TODO implement the projection and distortion Jacobian
     virtual bool projectionJacobian(const Vector3d & src, Eigen::Matrix<double, 2, 3> & Jac) const
     {
+        const double & u0 = params[0];
+        const double & v0 = params[1];
+        const double & f = params[2];
         const double & x = src(0);
         const double & y = src(1);
         const double & z = src(2);
@@ -140,8 +153,8 @@ void testGeometry()
 
 void testVision()
 {
-    MeiCamera * cam1mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
-    MeiCamera * cam2mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
+    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    MeiCamera cam1mei(params);   MeiCamera cam2mei(params);
     
     const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
@@ -167,7 +180,8 @@ void testVision()
 
 void testMei()
 {
-    MeiCamera cam1mei(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
+    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    MeiCamera cam1mei(params);
     
     for (int i = -3; i < 3; i++)
     {
@@ -195,8 +209,9 @@ void testMei()
 
 void testBundleAdjustment()
 {
-    MeiCamera * cam1mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
-    MeiCamera * cam2mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
+    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    MeiCamera cam1mei(params);
+    MeiCamera cam2mei(params);
     const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
     Transformation T1, T2(tR, qR);
@@ -255,8 +270,8 @@ void testBundleAdjustment()
 
 void testOdometry()
 {
-    MeiCamera * cam1mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
-    MeiCamera * cam2mei = new MeiCamera(1296, 966, 0.5, 1, 1000, 1000, 650, 470);
+    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    MeiCamera cam1mei(params);   MeiCamera cam2mei(params);
     
     const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
@@ -326,8 +341,8 @@ TODO: TO BE DONE IN THE FUTURE
     /// RECOMPUTE THE CALIBRATION
     
     vector<Vector3d> xVec1, xVec2;
-    cam1mei->reconstructPointCloud(pVec1, xVec1);
-    cam2mei->reconstructPointCloud(pVec2, xVec2);
+    cam1mei.reconstructPointCloud(pVec1, xVec1);
+    cam2mei.reconstructPointCloud(pVec2, xVec2);
     
     Matrix3d E;
     computeEssentialMatrix(xVec1, xVec2, E);

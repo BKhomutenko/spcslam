@@ -145,19 +145,6 @@ Quaternion Quaternion::operator*(const Quaternion & q) const
 } 
         
 
-
-Transformation::Transformation(double x, double y, double z,
-    double qx, double qy, double qz, double qw)
-    : mtrans(x, y, z) 
-{
-    mrot = Quaternion(qx, qy, qz, qw).toRotationVector();
-}
-    
-Transformation::Transformation(const Vector3d & t, const Quaternion & q): mtrans(t)
-{
-   mrot = q.toRotationVector();
-}
-
 void Transformation::toRotTrans(Matrix3d & R, Vector3d & t) const
 {
     t = mtrans;

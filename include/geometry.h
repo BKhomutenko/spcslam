@@ -56,11 +56,21 @@ class Transformation
 public:
     //FIXME
     Transformation() : mrot(0, 0, 0), mtrans(0, 0, 0) {}
-    Transformation(Vector3d trans, Vector3d rot) : mrot(rot), mtrans(trans) {}
+    
+    Transformation(Vector3d trans, Vector3d rot) : mtrans(trans), mrot(rot) {}
+
+    Transformation(const Vector3d & trans, const Quaternion & qrot)
+    : mtrans(trans), mrot(qrot.toRotationVector()) {}
+    
+    Transformation(const double * const data) : mtrans(data), mrot(data + 3) {}
+    
     Transformation(double x, double y, double z, double rx, double ry, double rz)
-        : mrot(rx, ry, rz), mtrans(x, y, z) { }
-    Transformation(double x, double y, double z, double qx, double qy, double qz, double qw);
-    Transformation(const Vector3d & t, const Quaternion & q);
+    : mtrans(x, y, z), mrot(rx, ry, rz) {}
+    
+    Transformation(double x, double y, double z, double qx, double qy, double qz, double qw)
+    : mtrans(x, y, z), mrot(Quaternion(qx, qy, qz, qw).toRotationVector()) {}
+    
+    
 
     void toRotTrans(Matrix3d & Rot, Vector3d & tr) const;
 

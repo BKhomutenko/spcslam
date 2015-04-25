@@ -1,10 +1,17 @@
-#include "tests/cartography_tests.h"
-#include "calibration.h"
-#include "vision.h"
-#include "mei.h"
+
 
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
+#include <iomanip>
+
+#include <boost/format.hpp>
+
+#include "geometry.h"
+#include "vision.h"
+#include "mei.h"
+#include "calibration.h"
+
+#include "tests/cartography_tests.h"
 
 using namespace cv;
 using Eigen::JacobiSVD;
@@ -14,30 +21,41 @@ int main(int argc, char** argv) {
     
     // Intrinsic calibration
     
-    array<double, 6> par1{0.1, 0.1, 500, 500, 650, 450}, par2{0.1, 0.1, 500, 500, 650, 450};
-    array<double, 6> xi{1, 0.1, 0.1, 0.1, 0.1, 0.1};
-//    intrinsicCalibration("calibInfoLeft.txt", par1);
-//    intrinsicCalibration("calibInfoRight.txt", par2);
+    array<double, 6> params{0.1, 0.1, 500, 500, 650, 450};
+    
+    MeiCamera cam1(params.data());
+    MeiCamera cam2(params.data());
+    
+    Transformation T(1, 0.1, 0.1, 0.1, -0.1, 0.1);
+    
+    intrinsicCalibration("calibInfoLeft.txt", cam1);
+    intrinsicCalibration("calibInfoRight.txt", cam2);
+    
+    cout << "Intrinsic 1 : " << endl;
+    for (auto & p : cam1.params)
+    {
+        cout << boost::format("%3.3f ") % p;
+    }
+    cout << endl;
+    cout << "Intrinsic 2 : " << endl;
+    for (auto & p : cam2.params)
+    {
+        cout << boost::format("%3.3f ") % p;
+    }
+    cout << endl;
+    
+//    extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
+//            par1, par2, xi);
 //    
-////    cout << "Intrinsic 1 : " << endl;
-////    cout << par1[0] << " " << par1[1] << " " << par1[2] << endl;
-////    cout << par1[3] << " " << par1[4] << " " << par1[5] << endl;
-//    cout << "Intrinsic 2: " << endl;
+//    cout << "Extrinsic : " << endl;
+//    cout << xi[0] << " " << xi[1] << " " << xi[2] << endl;
+//    cout << xi[3] << " " << xi[4] << " " << xi[5] << endl;
+//    cout << "Intrinsic 1 : " << endl;
+//    cout << par1[0] << " " << par1[1] << " " << par1[2] << endl;
+//    cout << par1[3] << " " << par1[4] << " " << par1[5] << endl;
+//    cout << "Intrinsic 2 : " << endl;
 //    cout << par2[0] << " " << par2[1] << " " << par2[2] << endl;
 //    cout << par2[3] << " " << par2[4] << " " << par2[5] << endl;
-    
-    extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
-            par1, par2, xi);
-    
-    cout << "Extrinsic : " << endl;
-    cout << xi[0] << " " << xi[1] << " " << xi[2] << endl;
-    cout << xi[3] << " " << xi[4] << " " << xi[5] << endl;
-    cout << "Intrinsic 1 : " << endl;
-    cout << par1[0] << " " << par1[1] << " " << par1[2] << endl;
-    cout << par1[3] << " " << par1[4] << " " << par1[5] << endl;
-    cout << "Intrinsic 2 : " << endl;
-    cout << par2[0] << " " << par2[1] << " " << par2[2] << endl;
-    cout << par2[3] << " " << par2[4] << " " << par2[5] << endl;
     
     
     // Extrinsic calibration using epipolar geometry

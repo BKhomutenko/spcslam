@@ -1,12 +1,12 @@
 #include <cmath>
 #include <fstream>
 #include <string>
+#include <algorithm>
 
 #include <opencv2/opencv.hpp>
 #include <ceres/ceres.h>
 #include <glog/logging.h>
 
-#include "mei.h"
 #include "calibration.h"
 
 using namespace std;
@@ -19,23 +19,16 @@ using ceres::Problem;
 using ceres::Solver;
 using ceres::Solve;
 
-double logistic(double x)
-{
-    double ex = exp(x);
-    return ex/(1 + ex);
-}
-
 bool BoardProjection::operator()(const double * const * parameters, double * residual) const 
 {
-    const double * const calib = parameters[0];
-    MeiCamera cam(100, 100, logistic(calib[0]), exp(calib[1]), 
-            calib[2], calib[3], calib[4], calib[5]);
-    const double * const xi = parameters[1];
-    Transformation T(xi[0], xi[1], xi[2], xi[3], xi[4], xi[5]);
+    _camera.setParameters(parameters[0]);
+    Transformation T(parameters[1]);
+    
     vector<Vector3d> transformedPoints;
     T.transform(_orig, transformedPoints);
+    
     vector<Vector2d> projectedPoints;
-    cam.projectPointCloud(transformedPoints, projectedPoints);
+    _camera.projectPointCloud(transformedPoints, projectedPoints);
     for (unsigned int i = 0; i < projectedPoints.size(); i++)
     {
         Vector2d diff = _proj[i] - projectedPoints[i];
@@ -53,19 +46,16 @@ bool BoardProjection::operator()(const double * const * parameters, double * res
 
 bool StereoBoardProjection::operator()(const double * const * parameters, double * residual) const 
 {
-    const double * const calib = parameters[0];
-    MeiCamera cam(100, 100, logistic(calib[0]), exp(calib[1]), 
-            calib[2], calib[3], calib[4], calib[5]);
-    const double * const xi = parameters[1];
-    const double * const eta = parameters[2];
-    Transformation T0b(xi[0], xi[1], xi[2], xi[3], xi[4], xi[5]);
-    Transformation T01(eta[0], eta[1], eta[2], eta[3], eta[4], eta[5]);
+    _camera.setParameters(parameters[0]);
+    Transformation T0b(parameters[1]);
+    Transformation T01(parameters[2]);
     Transformation T1b = T01.inverseCompose(T0b);
+    
     vector<Vector3d> transformedPoints;
     T1b.transform(_orig, transformedPoints);
     
     vector<Vector2d> projectedPoints;
-    cam.projectPointCloud(transformedPoints, projectedPoints);
+    _camera.projectPointCloud(transformedPoints, projectedPoints);
     for (unsigned int i = 0; i < projectedPoints.size(); i++)
     {
         Vector2d diff = _proj[i] - projectedPoints[i];
@@ -81,7 +71,7 @@ bool StereoBoardProjection::operator()(const double * const * parameters, double
     return true;
 }
   
-IntrinsicCalibrationData::IntrinsicCalibrationData(const string & infoFileName)
+IntrinsicCalibrationData::IntrinsicCalibrationData(const string & infoFileName, Camera & camera)
 {
     // open the file and read the data
     ifstream calibInfoFile(infoFileName);
@@ -107,16 +97,16 @@ IntrinsicCalibrationData::IntrinsicCalibrationData(const string & infoFileName)
         isExtracted = extractGridProjection(imageFolder + imageName, Nx, Ny, pointVec);
         if (isExtracted) 
         {
-            BoardProjection * boardProj = new BoardProjection(pointVec, original);
+            BoardProjection * boardProj = new BoardProjection(pointVec, original, camera);
             residualVec.push_back(boardProj);
-            array<double, 6> xi = {-0.1, -0.1, 0.2, 0.1, 0.1, 0.1};
+            array<double, 6> xi = {-0.1, -0.1, 0.2, 0.1, -0.1, 0.1};
             extrinsicVec.push_back(xi);
             fileNameVec.push_back(imageFolder + imageName);
         }
     }
 }
 
-void IntrinsicCalibrationData::residualAnalysis(const array<double, 6> & intrinsic)
+void IntrinsicCalibrationData::residualAnalysis(const vector<double> & intrinsic)
 {
     vector<double> residual(2 * Nx * Ny);
     double Ex = 0, Ey = 0;
@@ -165,7 +155,8 @@ void IntrinsicCalibrationData::residualAnalysis(const array<double, 6> & intrins
     cout << "Ex = " << Ex << "; Ey = " << Ey << "; Emax = " << Emax << endl;  
 }
 
-ExtrinsicCalibrationData::ExtrinsicCalibrationData(const string & infoFileName)
+ExtrinsicCalibrationData::ExtrinsicCalibrationData(const string & infoFileName,
+        Camera & camera1, Camera & camera2)
 {
     // open the file and read the data
     ifstream calibInfoFile(infoFileName);
@@ -198,8 +189,9 @@ ExtrinsicCalibrationData::ExtrinsicCalibrationData(const string & infoFileName)
                                              
         if (isExtracted1 and isExtracted2) 
         {
-            BoardProjection * boardProj1 = new BoardProjection(point1Vec, original);
-            StereoBoardProjection * boardProj2 = new StereoBoardProjection(point2Vec, original);
+            BoardProjection * boardProj1 = new BoardProjection(point1Vec, original, camera1);
+            StereoBoardProjection * boardProj2 = new StereoBoardProjection(point2Vec,
+                                                        original, camera2);
             residual1Vec.push_back(boardProj1);
             residual2Vec.push_back(boardProj2);
             array<double, 6> xi = {-0.1, -0.1, 0.5, 0.1, 0.1, 0.1};
@@ -248,24 +240,29 @@ void generateOriginal(int Nx, int Ny, double sqSize, vector<Vector3d> & pointVec
 }
 
 void extrinsicStereoCalibration(const string & infoFileName1, const string & infoFileName2,
-         const string & infoFileNameStereo, array<double, 6> & intrinsic1, 
-         array<double, 6> & intrinsic2, array<double, 6> & extrinsic)
+         const string & infoFileNameStereo, Camera & cam1, Camera & cam2, Transformation & T)
 {
+    vector<double> intrinsic1 = cam1.params; 
+    vector<double> intrinsic2 = cam2.params; 
+    array<double, 6> extrinsic;
+    copy(T.transData(), T.transData() + 3, extrinsic.data());
+    copy(T.rotData(), T.rotData() + 3, extrinsic.data() + 3);
+    
     cout << "### Extrinsic parameters calibration ###" << endl;
-    IntrinsicCalibrationData calibInfo1(infoFileName1); 
+    IntrinsicCalibrationData calibInfo1(infoFileName1, cam1); 
     if (calibInfo1.residualVec.size() == 0)
     {
         cout << "ERROR : none of images were accepted" << endl;
         return;
     } 
        
-    IntrinsicCalibrationData calibInfo2(infoFileName2);
+    IntrinsicCalibrationData calibInfo2(infoFileName2, cam2);
     if (calibInfo2.residualVec.size() == 0)
     {
         cout << "ERROR : none of images were accepted" << endl;
         return;
     } 
-    ExtrinsicCalibrationData extCalibInfo(infoFileNameStereo);
+    ExtrinsicCalibrationData extCalibInfo(infoFileNameStereo, cam1, cam2);
     if (extCalibInfo.residual1Vec.size() == 0)
     {
         cout << "ERROR : none of images were accepted" << endl;
@@ -339,11 +336,12 @@ void extrinsicStereoCalibration(const string & infoFileName1, const string & inf
 }
 
 
-void intrinsicCalibration(const string & infoFileName, array<double, 6> & intrinsic)
+void intrinsicCalibration(const string & infoFileName, Camera & camera)
 {
     
     cout << "### Intrinsic parameters calibration ###" << endl;
-    IntrinsicCalibrationData calibInfo(infoFileName);
+    vector<double> intrinsic = camera.params;
+    IntrinsicCalibrationData calibInfo(infoFileName, camera);
     
     if (calibInfo.residualVec.size() == 0)
     {

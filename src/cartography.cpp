@@ -37,14 +37,14 @@ inline double sinc(const double x)
 
 ReprojectionErrorStereo::ReprojectionErrorStereo(double u, double v,
         const Transformation & camPose,
-        const Camera * const camera) 
+        const Camera & camera) 
         : u(u), v(v), camera(camera) 
 {
     camPose.toRotTransInv(Rcb, Pcb);
 }
 
 ReprojectionErrorFixed::ReprojectionErrorFixed(double u, double v, const Transformation & xi,
-        const Transformation & camPose, const Camera * const camera) 
+        const Transformation & camPose, const Camera & camera) 
         : u(u), v(v), camera(camera) 
 {
     xi.toRotTransInv(Rbo, Pbo);
@@ -62,7 +62,7 @@ bool ReprojectionErrorFixed::Evaluate(double const* const* args,
 
     X = Rcb*(Rbo*X + Pbo) + Pcb;
     Vector2d point;
-    camera->projectPoint(X, point);
+    camera.projectPoint(X, point);
     residuals[0] = point[0] - u;
     residuals[1] = point[1] - v;
     
@@ -70,7 +70,7 @@ bool ReprojectionErrorFixed::Evaluate(double const* const* args,
     {
         
         Eigen::Matrix<double, 2, 3> J;
-        camera->projectionJacobian(X, J);
+        camera.projectionJacobian(X, J);
         
         // dp / dX
         Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * Rcb * Rbo;
@@ -94,7 +94,7 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
     
     X = Rcb * (Rbo * X + Pbo) + Pcb;
     Vector2d point;
-    camera->projectPoint(X, point);
+    camera.projectPoint(X, point);
     residuals[0] = point[0] - u;
     residuals[1] = point[1] - v;
 
@@ -102,7 +102,7 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
     {
         
         Eigen::Matrix<double, 2, 3> J;
-        camera->projectionJacobian(X, J);
+        camera.projectionJacobian(X, J);
         
         Matrix3d Rco = Rcb * Rbo;
         
@@ -137,14 +137,14 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
 }
 
 void MapInitializer::addFixedObservation(Vector3d & X, double u, double v, Transformation & pose,
-        const Camera * const cam, const Transformation & camPose)
+        const Camera & cam, const Transformation & camPose)
 {
     CostFunction * costFunc = new ReprojectionErrorFixed(u, v, pose, camPose, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data());
 }
 
 void MapInitializer::addObservation(Vector3d & X, double u, double v, Transformation & pose,
-        const Camera * const cam, const Transformation & camPose)
+        const Camera & cam, const Transformation & camPose)
 {
     CostFunction * costFunc = new ReprojectionErrorStereo(u, v, camPose, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data(), pose.transData(), pose.rotData());
@@ -221,7 +221,7 @@ Transformation StereoCartography::computeTransformation(
     Matrix3d Rcb;
     Vector3d Pcb;
     stereo.pose1.toRotTransInv(Rcb, Pcb);
-    Camera * camera = stereo.cam1;
+    Camera & camera = stereo.cam1;
     //TODO add a termination criterion
     for (unsigned int optimIter = 0; optimIter < 10; optimIter++)
     {
@@ -255,12 +255,12 @@ Transformation StereoCartography::computeTransformation(
             Vector3d X = Rbo*cloud[i] + Pbo;
             X = Rcb*X + Pcb;
             Vector2d err;
-            camera->projectPoint(X, err);
+            camera.projectPoint(X, err);
             err = observationVec[i] - err;
             ERR += err.norm();
             Matrix3d Rco = Rcb * Rbo;
             Eigen::Matrix<double, 2, 3> Jx;
-            camera->projectionJacobian(X, Jx);
+            camera.projectionJacobian(X, Jx);
             
             Eigen::Matrix<double, 2, 6> Jcam;
             Jcam << -Jx * Rco, Jx * hat(X) * Rco * LxiInv;
@@ -331,16 +331,16 @@ void StereoCartography::odometryRansac(
             Eigen::Matrix<double, 2, 3> J1, J2, J3;
             
             X1 = Rcb*(Rbo*cloud[idx1m] + Pbo) + Pcb;
-            stereo.cam1->projectPoint(X1, Err1);
-            stereo.cam1->projectionJacobian(X1, J1);
+            stereo.cam1.projectPoint(X1, Err1);
+            stereo.cam1.projectionJacobian(X1, J1);
             
             X2 = Rcb*(Rbo*cloud[idx2m] + Pbo) + Pcb;
-            stereo.cam1->projectPoint(X2, Err2);
-            stereo.cam1->projectionJacobian(X2, J2);
+            stereo.cam1.projectPoint(X2, Err2);
+            stereo.cam1.projectionJacobian(X2, J2);
             
             X3 = Rcb*(Rbo*cloud[idx3m] + Pbo) + Pcb;
-            stereo.cam1->projectPoint(X3, Err3);            
-            stereo.cam1->projectionJacobian(X3, J3);
+            stereo.cam1.projectPoint(X3, Err3);            
+            stereo.cam1.projectionJacobian(X3, J3);
             
             Eigen::Matrix<double, 6, 6> J;
             Matrix3d Rco = Rcb * Rbo;
