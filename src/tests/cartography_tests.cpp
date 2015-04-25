@@ -154,7 +154,8 @@ void testGeometry()
 void testVision()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera cam1mei(params);   MeiCamera cam2mei(params);
+    MeiCamera cam1mei(params);   
+    MeiCamera cam2mei(params);
     
     const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?

@@ -14,23 +14,6 @@
 
 using namespace std;
 
-StereoSystem initVirtualStereo()
-{
-    // intrinsic parameters (width, height, alfa, beta, fu, fv, u0, v0)
-    Camera * cam1 = new MeiCamera(1296, 966, 0.5, 1, 500, 500, 648, 483);
-    Camera * cam2 = new MeiCamera(1296, 966, 0.5, 1, 500, 500, 648, 483);
-
-    // estrinsic parameters
-    const Vector3d r(5*3.1415926/180, 2*3.1415926/180, -3*3.1415926/180); // (x, y, z), vector for 2R1
-    const Vector3d tR(1, 0.1, -0.05); // (x, y, z), 2t1-2
-    Transformation T1, T2(tR, r);
-
-    // create stereo system
-    StereoSystem stereo(T1, T2, cam1, cam2);
-
-    return stereo;
-}
-
 vector<testPoint> initCloud()
 {
     const double xMin = -10;
@@ -165,7 +148,17 @@ void testStereoMatch()
 {
     cout << "### Stereo Match Test ### " << flush;
 
-    StereoSystem stereo = initVirtualStereo();
+    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    MeiCamera cam1mei(1296, 966, params);   
+    MeiCamera cam2mei(1296, 966, params);
+
+    // estrinsic parameters
+    const Vector3d r(5*3.1415926/180, 2*3.1415926/180, -3*3.1415926/180); // (x, y, z), vector for 2R1
+    const Vector3d tR(1, 0.1, -0.05); // (x, y, z), 2t1-2
+    Transformation T1, T2(tR, r);
+
+    // create stereo system
+    StereoSystem stereo(T1, T2, cam1mei, cam2mei);
 
     //displayBins(stereo);
 
@@ -527,12 +520,12 @@ void displayBins(const StereoSystem & stereo)
     Matcher matcher;
     matcher.initStereoBins(stereo);
 
-    cv::Mat imageL(stereo.cam1->height, stereo.cam1->width, CV_8UC1);
-    cv::Mat imageR(stereo.cam2->height, stereo.cam2->width, CV_8UC1);
+    cv::Mat imageL(stereo.cam1.height, stereo.cam1.width, CV_8UC1);
+    cv::Mat imageR(stereo.cam2.height, stereo.cam2.width, CV_8UC1);
 
-    for (int i = 0; i < stereo.cam1->height; i++)
+    for (int i = 0; i < stereo.cam1.height; i++)
     {
-        for (int j = 0; j < stereo.cam1->width; j++)
+        for (int j = 0; j < stereo.cam1.width; j++)
         {
             int k = abs(matcher.binMapL(i,j) % 2);
 
@@ -540,9 +533,9 @@ void displayBins(const StereoSystem & stereo)
         }
     }
 
-    for (int i = 0; i < stereo.cam2->height; i++)
+    for (int i = 0; i < stereo.cam2.height; i++)
     {
-        for (int j = 0; j < stereo.cam2->width; j++)
+        for (int j = 0; j < stereo.cam2.width; j++)
         {
             int k = abs(matcher.binMapR(i,j) % 2);
 
