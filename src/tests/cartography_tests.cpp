@@ -24,7 +24,7 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Vector2d;
 
-class Pinhole : public Camera
+class Pinhole : public Camera<double>
 {
 public:
 

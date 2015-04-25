@@ -8,7 +8,7 @@
 
 double logistic(double x);
 
-class MeiCamera : public Camera
+class MeiCamera : public Camera<double>
 {
 public:
     MeiCamera(int W, int H, double * parameters);

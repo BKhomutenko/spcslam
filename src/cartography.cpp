@@ -37,14 +37,14 @@ inline double sinc(const double x)
 
 ReprojectionErrorStereo::ReprojectionErrorStereo(double u, double v,
         const Transformation & camPose,
-        const Camera & camera) 
+        const Camera<double> & camera) 
         : u(u), v(v), camera(camera) 
 {
     camPose.toRotTransInv(Rcb, Pcb);
 }
 
 ReprojectionErrorFixed::ReprojectionErrorFixed(double u, double v, const Transformation & xi,
-        const Transformation & camPose, const Camera & camera) 
+        const Transformation & camPose, const Camera<double> & camera) 
         : u(u), v(v), camera(camera) 
 {
     xi.toRotTransInv(Rbo, Pbo);
@@ -137,14 +137,14 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
 }
 
 void MapInitializer::addFixedObservation(Vector3d & X, double u, double v, Transformation & pose,
-        const Camera & cam, const Transformation & camPose)
+        const Camera<double> & cam, const Transformation & camPose)
 {
     CostFunction * costFunc = new ReprojectionErrorFixed(u, v, pose, camPose, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data());
 }
 
 void MapInitializer::addObservation(Vector3d & X, double u, double v, Transformation & pose,
-        const Camera & cam, const Transformation & camPose)
+        const Camera<double> & cam, const Transformation & camPose)
 {
     CostFunction * costFunc = new ReprojectionErrorStereo(u, v, camPose, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data(), pose.transData(), pose.rotData());
@@ -221,7 +221,7 @@ Transformation StereoCartography::computeTransformation(
     Matrix3d Rcb;
     Vector3d Pcb;
     stereo.pose1.toRotTransInv(Rcb, Pcb);
-    Camera & camera = stereo.cam1;
+    Camera<double> & camera = stereo.cam1;
     //TODO add a termination criterion
     for (unsigned int optimIter = 0; optimIter < 10; optimIter++)
     {

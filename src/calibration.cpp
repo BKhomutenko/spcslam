@@ -71,7 +71,7 @@ bool StereoBoardProjection::operator()(const double * const * parameters, double
     return true;
 }
   
-IntrinsicCalibrationData::IntrinsicCalibrationData(const string & infoFileName, Camera & camera)
+IntrinsicCalibrationData::IntrinsicCalibrationData(const string & infoFileName, Camera<double> & camera)
 {
     // open the file and read the data
     ifstream calibInfoFile(infoFileName);
@@ -156,7 +156,7 @@ void IntrinsicCalibrationData::residualAnalysis(const vector<double> & intrinsic
 }
 
 ExtrinsicCalibrationData::ExtrinsicCalibrationData(const string & infoFileName,
-        Camera & camera1, Camera & camera2)
+        Camera<double> & camera1, Camera<double> & camera2)
 {
     // open the file and read the data
     ifstream calibInfoFile(infoFileName);
@@ -240,7 +240,7 @@ void generateOriginal(int Nx, int Ny, double sqSize, vector<Vector3d> & pointVec
 }
 
 void extrinsicStereoCalibration(const string & infoFileName1, const string & infoFileName2,
-         const string & infoFileNameStereo, Camera & cam1, Camera & cam2, Transformation & T)
+         const string & infoFileNameStereo, Camera<double> & cam1, Camera<double> & cam2, Transformation & T)
 {
     vector<double> intrinsic1 = cam1.params; 
     vector<double> intrinsic2 = cam2.params; 
@@ -336,7 +336,7 @@ void extrinsicStereoCalibration(const string & infoFileName1, const string & inf
 }
 
 
-void intrinsicCalibration(const string & infoFileName, Camera & camera)
+void intrinsicCalibration(const string & infoFileName, Camera<double> & camera)
 {
     
     cout << "### Intrinsic parameters calibration ###" << endl;

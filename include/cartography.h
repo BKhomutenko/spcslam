@@ -55,7 +55,7 @@ struct LandMark
 
 struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
 {
-    ReprojectionErrorStereo(double u, double v, const Transformation & xi, const Camera & camera);
+    ReprojectionErrorStereo(double u, double v, const Transformation & xi, const Camera<double> & camera);
     
     // args : double lm[3], double pose[6]
     bool Evaluate(double const* const* args,
@@ -69,14 +69,14 @@ struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
     Matrix3d Rcb;
     
     //provides projection model
-    const Camera & camera;
+    const Camera<double> & camera;
     
 };
 
 struct ReprojectionErrorFixed : public ceres::SizedCostFunction<2, 3>
 {
     ReprojectionErrorFixed(double u, double v, const Transformation & xi,
-            const Transformation & camTransformation, const Camera & camera);
+            const Transformation & camTransformation, const Camera<double> & camera);
     
     // args : double lm[3]
     bool Evaluate(double const* const* args,
@@ -89,7 +89,7 @@ struct ReprojectionErrorFixed : public ceres::SizedCostFunction<2, 3>
     Vector3d Pcb, Pbo;
     Matrix3d Rcb, Rbo;
     //provides projection model
-    const Camera & camera;
+    const Camera<double> & camera;
     
 };
 
@@ -100,10 +100,10 @@ class MapInitializer
 public:
    
     void addObservation(Vector3d & X, double u, double v, Transformation & pose,
-            const Camera & cam, const Transformation & camTransformation);
+            const Camera<double> & cam, const Transformation & camTransformation);
     
     void addFixedObservation(Vector3d & X, double u, double v, Transformation & pose,
-            const Camera & cam, const Transformation & camTransformation);       
+            const Camera<double> & cam, const Transformation & camTransformation);       
 //    void addObservationRight(Vector3d & X, double u, double v, Transformation & pose,
 //            const Camera & cam, Transformation & rightCamTransformation);
             
@@ -120,7 +120,7 @@ private:
 class StereoCartography
 {
 public:
-    StereoCartography (Transformation & p1, Transformation & p2, Camera & c1, Camera & c2) 
+    StereoCartography (Transformation & p1, Transformation & p2, Camera<double> & c1, Camera<double> & c2) 
             : stereo(p1, p2, c1, c2) {}
 //    virtual ~StereoCartography () { LM.clear(); trajectory.clear(); }
     
