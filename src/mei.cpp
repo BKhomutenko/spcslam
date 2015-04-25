@@ -7,9 +7,31 @@
 
 using namespace std;
 
+double logistic(double x)
+{
+    double ex = exp(x);
+    return ex/(1 + ex);
+}
+
+MeiCamera::MeiCamera(int W, int H, double * parameters) : Camera(W, H, 6)
+{  
+    setParameters(parameters);
+}
+
+MeiCamera::MeiCamera(double * parameters)  : Camera(1, 1, 6)
+{  
+    setParameters(parameters);
+}
+
 bool MeiCamera::projectPoint(const Eigen::Vector3d & src, Eigen::Vector2d & dst) const
 {
-
+    const double & alpha = params[0];
+    const double & beta = params[1];
+    const double & fu = params[2];
+    const double & fv = params[3];
+    const double & u0 = params[4];
+    const double & v0 = params[5];
+    
     const double & x = src(0);
     const double & y = src(1);
     const double & z = src(2);
@@ -30,11 +52,15 @@ bool MeiCamera::projectPoint(const Eigen::Vector3d & src, Eigen::Vector2d & dst)
 bool MeiCamera::reconstructPoint(const Eigen::Vector2d & src, Eigen::Vector3d & dst) const
 {
 
+    const double & alpha = params[0];
+    const double & beta = params[1];
+    const double & fu = params[2];
+    const double & fv = params[3];
+    const double & u0 = params[4];
+    const double & v0 = params[5];
+    
     double xn = (src(0) - u0) / fu;
     double yn = (src(1) - v0) / fv;
-
-    /*double k = xn * xn + yn * yn;
-    double m = (xi + std::sqrt((double)1 + (1 - xi * xi) * k)) / (k + 1);*/
     
     double u2 = xn * xn + yn * yn;
     double gamma = 1 - alpha;    
@@ -46,7 +72,7 @@ bool MeiCamera::reconstructPoint(const Eigen::Vector2d & src, Eigen::Vector3d & 
     
     double r = B + sqrt(D1);
     
-    double denom = -gamma*A + alpha*sqrt(A*A +(beta  * r * r));
+    double denom = -gamma*A + alpha*sqrt(A*A + (beta  * r * r));
     dst << xn*denom, yn*denom, -A;
 
     return true;
@@ -55,7 +81,13 @@ bool MeiCamera::reconstructPoint(const Eigen::Vector2d & src, Eigen::Vector3d & 
 
 bool MeiCamera::projectionJacobian(const Eigen::Vector3d & src, Eigen::Matrix<double, 2, 3> & Jac) const
 {
-
+    const double & alpha = params[0];
+    const double & beta = params[1];
+    const double & fu = params[2];
+    const double & fv = params[3];
+    const double & u0 = params[4];
+    const double & v0 = params[5];
+    
     const double & x = src(0);
     const double & y = src(1);
     const double & z = src(2);
@@ -74,3 +106,12 @@ bool MeiCamera::projectionJacobian(const Eigen::Vector3d & src, Eigen::Matrix<do
     return true;
 
 }
+
+void MeiCamera::setParameters(const double * const newParams)
+{
+    Camera::setParameters(newParams);
+    params[0] = logistic(params[0]);
+    params[1] = exp(params[1]);
+}
+    
+    

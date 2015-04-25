@@ -8,6 +8,7 @@ Stereo vision definition.
 
 //STL
 #include <vector>
+#include <algorithm>
 
 //Eigen
 #include <Eigen/Eigen>
@@ -21,8 +22,8 @@ enum CameraID {LEFT, RIGHT};
 class Camera
 {
 public:
-
-    unsigned int width, height;
+    vector<double> params;
+    int width, height;
 
     /// takes raw image points and apply undistortion model to them
     virtual bool reconstructPoint(const Eigen::Vector2d & src, Eigen::Vector3d & dst) const = 0;
@@ -34,7 +35,12 @@ public:
     virtual bool projectionJacobian(const Eigen::Vector3d & src,
             Eigen::Matrix<double, 2, 3> & Jac) const = 0;
 
-    Camera(unsigned int W, unsigned int H) : width(W), height(H) {}
+    virtual void setParameters(const double * const newParams)
+    {
+        copy(newParams, newParams + params.size(), params.begin());
+    }
+    
+    Camera(int W, int H, int numParams) : width(W), height(H), params(numParams) {}
 
     virtual ~Camera() {}
     
@@ -70,9 +76,8 @@ public:
     void reconstructPointCloud(const vector<Eigen::Vector2d> & src1, const vector<Eigen::Vector2d> & src2,
             vector<Eigen::Vector3d> & dst) const;
 
-    ~StereoSystem();
     //TODO make smart constructor with calibration data passed
-    StereoSystem(Transformation & p1, Transformation & p2, Camera * c1, Camera * c2)
+    StereoSystem(Transformation & p1, Transformation & p2, Camera & c1, Camera & c2)
             : pose1(p1), pose2(p2), cam1(c1), cam2(c2) {}
 
     static bool triangulate(const Eigen::Vector3d & v1, const Eigen::Vector3d & v2,
@@ -82,7 +87,7 @@ public:
             Eigen::Vector3d & X) const;
     Transformation pose1;  // pose of the left camera in the base frame
     Transformation pose2;  // pose of the right camera in the base frame
-    Camera * cam1, * cam2;
+    Camera & cam1, & cam2;
 };
 
 void computeEssentialMatrix(const vector<Eigen::Vector3d> & xVec1,

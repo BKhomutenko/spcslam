@@ -21,6 +21,8 @@ add_executable( stereo
     src/mei.cpp
     src/matcher.cpp
     src/extractor.cpp
+    src/mei.cpp
+    src/calibration.cpp
     src/tests/cartography_tests.cpp
     src/tests/matching_tests.cpp
 )
