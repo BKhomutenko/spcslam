@@ -36,15 +36,15 @@ inline double sinc(const double x)
 }
 
 ReprojectionErrorStereo::ReprojectionErrorStereo(double u, double v,
-        const Transformation & camPose,
+        const Transformation<double> & camPose,
         const Camera<double> & camera) 
         : u(u), v(v), camera(camera) 
 {
     camPose.toRotTransInv(Rcb, Pcb);
 }
 
-ReprojectionErrorFixed::ReprojectionErrorFixed(double u, double v, const Transformation & xi,
-        const Transformation & camPose, const Camera<double> & camera) 
+ReprojectionErrorFixed::ReprojectionErrorFixed(double u, double v, const Transformation<double> & xi,
+        const Transformation<double> & camPose, const Camera<double> & camera) 
         : u(u), v(v), camera(camera) 
 {
     xi.toRotTransInv(Rbo, Pbo);
@@ -88,7 +88,7 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
                     double** jac) const
 {
     Vector3d rot = Vector3d(args[2]);
-    Matrix3d Rbo = rotationMatrix(-rot);
+    Matrix3d Rbo = rotationMatrix<double>(-rot);
     Vector3d Pbo = -Rbo*Vector3d(args[1]);    
     Vector3d X(args[0]);
     
@@ -116,7 +116,7 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
         double theta = rot.norm();
         if ( theta != 0)
         {
-            Matrix3d uhat = hat(rot / theta);
+            Matrix3d uhat = hat<double>(rot / theta);
             LxiInv = Matrix3d::Identity() + 
                 theta/2*sinc(theta/2)*uhat + 
                 (1 - sinc(theta))*uhat*uhat;
@@ -136,15 +136,15 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
     return true;
 }
 
-void MapInitializer::addFixedObservation(Vector3d & X, double u, double v, Transformation & pose,
-        const Camera<double> & cam, const Transformation & camPose)
+void MapInitializer::addFixedObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
+        const Camera<double> & cam, const Transformation<double> & camPose)
 {
     CostFunction * costFunc = new ReprojectionErrorFixed(u, v, pose, camPose, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data());
 }
 
-void MapInitializer::addObservation(Vector3d & X, double u, double v, Transformation & pose,
-        const Camera<double> & cam, const Transformation & camPose)
+void MapInitializer::addObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
+        const Camera<double> & cam, const Transformation<double> & camPose)
 {
     CostFunction * costFunc = new ReprojectionErrorStereo(u, v, camPose, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data(), pose.transData(), pose.rotData());
@@ -210,11 +210,11 @@ void StereoCartography::improveTheMap()
 
 }
 
-Transformation StereoCartography::computeTransformation(
+Transformation<double> StereoCartography::computeTransformation(
         const vector<Vector2d> & observationVec,
         const vector<Vector3d> & cloud, 
         const vector<bool> & inlierMask, 
-        Transformation & xi)
+        Transformation<double> & xi)
 {
     assert(observationVec.size() == cloud.size());
     assert(observationVec.size() == inlierMask.size());
@@ -277,7 +277,7 @@ void StereoCartography::odometryRansac(
         const vector<Vector2d> & observationVec,
         const vector<Vector3d> & cloud,
         vector<bool> & inlierMask,
-        Transformation & xi)
+        Transformation<double> & xi)
 {
     assert(observationVec.size() == cloud.size());
     int numPoints = observationVec.size();
@@ -285,8 +285,8 @@ void StereoCartography::odometryRansac(
     inlierMask.resize(numPoints);
     
     int numIterMax = 25;
-    const Transformation initialPose = xi;
-    Transformation pose;
+    const Transformation<double> initialPose = xi;
+    Transformation<double> pose;
     int bestInliers = 0;
     //TODO add a termination criterion
     for (unsigned int iteration = 0; iteration < numIterMax; iteration++)
@@ -396,7 +396,7 @@ void StereoCartography::odometryRansac(
     }
 }
 
-Transformation StereoCartography::estimateOdometry(const vector<Feature> & featureVec)
+Transformation<double> StereoCartography::estimateOdometry(const vector<Feature> & featureVec)
 {
     //Matching
     
@@ -426,7 +426,7 @@ Transformation StereoCartography::estimateOdometry(const vector<Feature> & featu
     cout << "cloud : " << cloud.size() << endl;
     //RANSAC
     vector<bool> inlierMask;
-    Transformation xi = trajectory.back();
+    Transformation<double> xi = trajectory.back();
     odometryRansac(observationVec, cloud, inlierMask, xi);
     cout << xi << endl;
     //Final transformation computation

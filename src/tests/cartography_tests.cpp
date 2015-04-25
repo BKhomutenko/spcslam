@@ -134,8 +134,8 @@ void compare(const vector<Vector3d> cloud1, const vector<Vector3d> cloud2)
 
 void testGeometry()
 {
-    Transformation p1(1, 1, 1, 0.2, 0.3, 1);
-    Transformation p2(1, 0, -1, 0, -1, 0.7);
+    Transformation<double> p1(1, 1, 1, 0.2, 0.3, 1);
+    Transformation<double> p2(1, 0, -1, 0, -1, 0.7);
     
     auto p3 = p1.compose(p2);
     
@@ -157,9 +157,9 @@ void testVision()
     MeiCamera cam1mei(params);   
     MeiCamera cam2mei(params);
     
-    const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
+    const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
-    Transformation T1, T2(tR, qR);
+    Transformation<double> T1, T2(tR, qR);
     StereoSystem stereo(T1, T2, cam1mei, cam2mei);
     
     int maxNum = 15;
@@ -213,9 +213,9 @@ void testBundleAdjustment()
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
     MeiCamera cam1mei(params);
     MeiCamera cam2mei(params);
-    const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
+    const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
-    Transformation T1, T2(tR, qR);
+    Transformation<double> T1, T2(tR, qR);
     StereoCartography cartograph(T1, T2, cam1mei, cam2mei);
     
     int maxNum = 250;
@@ -232,11 +232,11 @@ void testBundleAdjustment()
         cartograph.LM[i].X = cloud1[i];
     }
     
-    cartograph.trajectory.push_back(Transformation(0, 0, 0, 0, 0, 0));
-    cartograph.trajectory.push_back(Transformation(0, 0, 1, 0, 0.2, 0));
-    cartograph.trajectory.push_back(Transformation(0.1, 0, 2, 0, 0.3, 0));
-    cartograph.trajectory.push_back(Transformation(0.2, 0, 2.5, 0.1, 0.3, 0));
-    cartograph.trajectory.push_back(Transformation(0.3, 0, 2.7, 0.15, 0.3, 0));
+    cartograph.trajectory.push_back(Transformation<double>(0, 0, 0, 0, 0, 0));
+    cartograph.trajectory.push_back(Transformation<double>(0, 0, 1, 0, 0.2, 0));
+    cartograph.trajectory.push_back(Transformation<double>(0.1, 0, 2, 0, 0.3, 0));
+    cartograph.trajectory.push_back(Transformation<double>(0.2, 0, 2.5, 0.1, 0.3, 0));
+    cartograph.trajectory.push_back(Transformation<double>(0.3, 0, 2.7, 0.15, 0.3, 0));
     
     for (unsigned int j = 0; j < cartograph.trajectory.size(); j++)
     {
@@ -274,9 +274,9 @@ void testOdometry()
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
     MeiCamera cam1mei(params);   MeiCamera cam2mei(params);
     
-    const Quaternion qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
+    const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
-    Transformation T1, T2(tR, qR);
+    Transformation<double> T1, T2(tR, qR);
     StereoCartography cartograph(T1, T2, cam1mei, cam2mei);
     
     int maxNum = 250;
@@ -286,8 +286,8 @@ void testOdometry()
     
     cartograph.LM.resize(maxNum);
     
-    cartograph.trajectory.push_back(Transformation(0, 0, 0, 0, 0, 0));
-    cartograph.trajectory.push_back(Transformation(0.1, 0.2, 0.5, 0.1, 0.1, 0.1));
+    cartograph.trajectory.push_back(Transformation<double>(0, 0, 0, 0, 0, 0));
+    cartograph.trajectory.push_back(Transformation<double>(0.1, 0.2, 0.5, 0.1, 0.1, 0.1));
        
      
     for (unsigned int i = 0; i < maxNum; i++)
@@ -306,7 +306,7 @@ void testOdometry()
     }
     vector<bool> inlierMask(maxNum);
     
-    Transformation xi;
+    Transformation<double> xi;
     cartograph.odometryRansac(proj1, cloud, inlierMask, xi);
     cartograph.computeTransformation(proj1, cloud, inlierMask, xi);
     assertEqual(xi.rot(), cartograph.trajectory[1].rot());
@@ -368,7 +368,7 @@ TODO: TO BE DONE IN THE FUTURE
     cout << "new rotation : " << endl;
     cout << R << endl;
     R = -svd.matrixU() * R90 * svd.matrixV().transpose();
-    Quaternion newQ(R);
+    Quaternion<double> newQ(R);
     cout << newQ << endl;
     cout << R << endl;
     cout << "original rotation : " << endl;

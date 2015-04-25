@@ -15,8 +15,6 @@ Stereo vision definition.
 
 #include "geometry.h"
 
-#define Vector2T Eigen::Matrix<T, 2, 1> 
-#define Vector3T Eigen::Matrix<T, 3, 1> 
 
 using namespace std;
 
@@ -30,13 +28,13 @@ public:
     int width, height;
 
     /// takes raw image points and apply undistortion model to them
-    virtual bool reconstructPoint(const Vector2T & src, Vector3T & dst) const = 0;
+    virtual bool reconstructPoint(const Vector2<T> & src, Vector3<T> & dst) const = 0;
 
     /// projects 3D points onto the original image
-    virtual bool projectPoint(const Vector3T & src, Vector2T & dst) const = 0;
+    virtual bool projectPoint(const Vector3<T> & src, Vector2<T> & dst) const = 0;
 
     //TODO implement the projection and distortion Jacobian
-    virtual bool projectionJacobian(const Vector3T & src,
+    virtual bool projectionJacobian(const Vector3<T> & src,
             Eigen::Matrix<T, 2, 3> & Jac) const = 0;
 
     virtual void setParameters(const T * const newParams)
@@ -48,7 +46,7 @@ public:
 
     virtual ~Camera() {}
     
-    bool reconstructPointCloud(const vector<Vector2T> & src, vector<Vector3T> & dst) const
+    bool reconstructPointCloud(const vector<Vector2<T>> & src, vector<Vector3<T>> & dst) const
     {
         dst.resize(src.size());
         bool res = true;
@@ -59,7 +57,7 @@ public:
         return res;
     }
     
-    bool projectPointCloud(const vector<Vector3T> & src, vector<Vector2T> & dst) const
+    bool projectPointCloud(const vector<Vector3<T>> & src, vector<Vector2<T>> & dst) const
     {
         dst.resize(src.size());
         bool res = true;
@@ -75,13 +73,14 @@ class StereoSystem
 {
 public:
     void projectPointCloud(const vector<Eigen::Vector3d> & src,
-            vector<Vector2d> & dst1, vector<Eigen::Vector2d> & dst2) const;
+            vector<Eigen::Vector2d> & dst1, vector<Eigen::Vector2d> & dst2) const;
 
     void reconstructPointCloud(const vector<Eigen::Vector2d> & src1, const vector<Eigen::Vector2d> & src2,
             vector<Eigen::Vector3d> & dst) const;
 
     //TODO make smart constructor with calibration data passed
-    StereoSystem(Transformation & p1, Transformation & p2, Camera<double> & c1, Camera<double> & c2)
+    StereoSystem(Transformation<double> & p1, Transformation<double> & p2,
+            Camera<double> & c1, Camera<double> & c2)
             : pose1(p1), pose2(p2), cam1(c1), cam2(c2) {}
 
     static bool triangulate(const Eigen::Vector3d & v1, const Eigen::Vector3d & v2,
@@ -89,13 +88,13 @@ public:
     void reconstruct2(const Eigen::Vector2d & p1,
             const Eigen::Vector2d & p2,
             Eigen::Vector3d & X) const;
-    Transformation pose1;  // pose of the left camera in the base frame
-    Transformation pose2;  // pose of the right camera in the base frame
+    Transformation<double> pose1;  // pose of the left camera in the base frame
+    Transformation<double> pose2;  // pose of the right camera in the base frame
     Camera<double> & cam1, & cam2;
 };
 
-void computeEssentialMatrix(const vector<Vector3d> & xVec1,
-        const vector<Vector3d> & xVec2,
-        Matrix3d & E);
+void computeEssentialMatrix(const vector<Eigen::Vector3d> & xVec1,
+        const vector<Eigen::Vector3d> & xVec2,
+        Eigen::Matrix3d & E);
 
 #endif

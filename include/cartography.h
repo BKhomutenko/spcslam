@@ -20,6 +20,8 @@ The mapping system itself
 
 //Structure is used to perform map improvement
 
+
+
 using namespace std;
 using Eigen::Matrix;
 using Eigen::Vector2d;
@@ -55,7 +57,8 @@ struct LandMark
 
 struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
 {
-    ReprojectionErrorStereo(double u, double v, const Transformation & xi, const Camera<double> & camera);
+    ReprojectionErrorStereo(double u, double v, const Transformation<double> & xi,
+            const Camera<double> & camera);
     
     // args : double lm[3], double pose[6]
     bool Evaluate(double const* const* args,
@@ -75,8 +78,8 @@ struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
 
 struct ReprojectionErrorFixed : public ceres::SizedCostFunction<2, 3>
 {
-    ReprojectionErrorFixed(double u, double v, const Transformation & xi,
-            const Transformation & camTransformation, const Camera<double> & camera);
+    ReprojectionErrorFixed(double u, double v, const Transformation<double> & xi,
+            const Transformation<double> & camTransformation, const Camera<double> & camera);
     
     // args : double lm[3]
     bool Evaluate(double const* const* args,
@@ -99,11 +102,11 @@ class MapInitializer
 {
 public:
    
-    void addObservation(Vector3d & X, double u, double v, Transformation & pose,
-            const Camera<double> & cam, const Transformation & camTransformation);
+    void addObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
+            const Camera<double> & cam, const Transformation<double> & camTransformation);
     
-    void addFixedObservation(Vector3d & X, double u, double v, Transformation & pose,
-            const Camera<double> & cam, const Transformation & camTransformation);       
+    void addFixedObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
+            const Camera<double> & cam, const Transformation<double> & camTransformation);       
 //    void addObservationRight(Vector3d & X, double u, double v, Transformation & pose,
 //            const Camera & cam, Transformation & rightCamTransformation);
             
@@ -120,7 +123,8 @@ private:
 class StereoCartography
 {
 public:
-    StereoCartography (Transformation & p1, Transformation & p2, Camera<double> & c1, Camera<double> & c2) 
+    StereoCartography (Transformation<double> & p1, Transformation<double> & p2,
+            Camera<double> & c1, Camera<double> & c2) 
             : stereo(p1, p2, c1, c2) {}
 //    virtual ~StereoCartography () { LM.clear(); trajectory.clear(); }
     
@@ -133,19 +137,19 @@ public:
     void improveTheMap();    
     
     // Observation are supposed to be made by the left camera (cam1, pose1)
-    Transformation computeTransformation(
+    Transformation<double> computeTransformation(
         const vector<Vector2d> & observationVec,
         const vector<Vector3d> & cloud, 
         const vector<bool> & inlierMask, 
-        Transformation & xi);
+        Transformation<double> & xi);
             
     void odometryRansac(
         const vector<Vector2d> & observationVec,
         const vector<Vector3d> & cloud,
         vector<bool> & inlierMask,
-        Transformation & xi);
+        Transformation<double> & xi);
             
-    Transformation estimateOdometry(const vector<Feature> & featureVec);
+    Transformation<double> estimateOdometry(const vector<Feature> & featureVec);
     // take 300 last landmarks 
     // BF matching
     // RANSAC
@@ -159,7 +163,7 @@ public:
     
     //a chain of camera positions
     //first initialized with the odometry measurements
-    vector<Transformation> trajectory;
+    vector<Transformation<double> > trajectory;
     //list<LandMark &> activeLM;
 
 };

@@ -9,6 +9,9 @@
 
 
 using namespace std;
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
+using Eigen::Vector2d;
 
 void Matcher::bruteForce(const vector<Feature> & fVec1,
                          const vector<Feature> & fVec2,

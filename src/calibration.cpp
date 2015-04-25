@@ -22,7 +22,7 @@ using ceres::Solve;
 bool BoardProjection::operator()(const double * const * parameters, double * residual) const 
 {
     _camera.setParameters(parameters[0]);
-    Transformation T(parameters[1]);
+    Transformation<double> T(parameters[1]);
     
     vector<Vector3d> transformedPoints;
     T.transform(_orig, transformedPoints);
@@ -47,9 +47,9 @@ bool BoardProjection::operator()(const double * const * parameters, double * res
 bool StereoBoardProjection::operator()(const double * const * parameters, double * residual) const 
 {
     _camera.setParameters(parameters[0]);
-    Transformation T0b(parameters[1]);
-    Transformation T01(parameters[2]);
-    Transformation T1b = T01.inverseCompose(T0b);
+    Transformation<double> T0b(parameters[1]);
+    Transformation<double> T01(parameters[2]);
+    Transformation<double> T1b = T01.inverseCompose(T0b);
     
     vector<Vector3d> transformedPoints;
     T1b.transform(_orig, transformedPoints);
@@ -240,7 +240,7 @@ void generateOriginal(int Nx, int Ny, double sqSize, vector<Vector3d> & pointVec
 }
 
 void extrinsicStereoCalibration(const string & infoFileName1, const string & infoFileName2,
-         const string & infoFileNameStereo, Camera<double> & cam1, Camera<double> & cam2, Transformation & T)
+         const string & infoFileNameStereo, Camera<double> & cam1, Camera<double> & cam2, Transformation<double> & T)
 {
     vector<double> intrinsic1 = cam1.params; 
     vector<double> intrinsic2 = cam2.params; 

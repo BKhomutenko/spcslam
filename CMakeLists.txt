@@ -15,7 +15,6 @@ INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
 include_directories(include)
 add_executable( stereo
     src/main.cpp
-    src/geometry.cpp
     src/cartography.cpp
     src/vision.cpp
     src/mei.cpp

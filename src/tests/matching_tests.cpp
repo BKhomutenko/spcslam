@@ -13,6 +13,9 @@
 #include "extractor.h"
 
 using namespace std;
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
+using Eigen::Vector2d;
 
 vector<testPoint> initCloud()
 {
@@ -155,7 +158,7 @@ void testStereoMatch()
     // estrinsic parameters
     const Vector3d r(5*3.1415926/180, 2*3.1415926/180, -3*3.1415926/180); // (x, y, z), vector for 2R1
     const Vector3d tR(1, 0.1, -0.05); // (x, y, z), 2t1-2
-    Transformation T1, T2(tR, r);
+    Transformation<double> T1, T2(tR, r);
 
     // create stereo system
     StereoSystem stereo(T1, T2, cam1mei, cam2mei);

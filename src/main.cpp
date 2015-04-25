@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
     MeiCamera cam1(params.data());
     MeiCamera cam2(params.data());
     
-    Transformation T(1, 0.1, 0.1, 0.1, -0.1, 0.1);
+    Transformation<double> T(1, 0.1, 0.1, 0.1, -0.1, 0.1);
     
     intrinsicCalibration("calibInfoLeft.txt", cam1);
     intrinsicCalibration("calibInfoRight.txt", cam2);
