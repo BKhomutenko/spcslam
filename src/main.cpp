@@ -9,15 +9,9 @@
 #include "mei.h"
 #include "calibration.h"
 
-#include "tests/cartography_tests.h"
-#include "tests/matching_tests.h"
-
 using namespace cv;
 using Eigen::JacobiSVD;
 int main(int argc, char** argv) {
-
-    testMatching();
-    testCartography();
     
     // Intrinsic calibration
     

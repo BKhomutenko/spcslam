@@ -13,21 +13,37 @@ FIND_PACKAGE(Ceres REQUIRED)
 INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
 
 include_directories(include)
-add_executable( stereo
+add_executable( calibration
     src/main.cpp
+    src/vision.cpp
+    src/mei.cpp
+    src/calibration.cpp
+)
+
+target_link_libraries( calibration ${OpenCV_LIBS} )
+TARGET_LINK_LIBRARIES( calibration ${CERES_LIBRARIES})
+
+add_executable( cartography_test
     src/cartography.cpp
     src/vision.cpp
     src/mei.cpp
     src/matcher.cpp
-    src/extractor.cpp
-    src/mei.cpp
-    src/calibration.cpp
     src/tests/cartography_tests.cpp
+)
+
+target_link_libraries( cartography_test ${OpenCV_LIBS} )
+TARGET_LINK_LIBRARIES( cartography_test ${CERES_LIBRARIES})
+
+add_executable( matching_test
+    src/vision.cpp
+    src/mei.cpp
+    src/matcher.cpp
+    src/extractor.cpp
     src/tests/matching_tests.cpp
 )
 
-target_link_libraries( stereo ${OpenCV_LIBS} )
-TARGET_LINK_LIBRARIES( stereo ${CERES_LIBRARIES})
+target_link_libraries( matching_test ${OpenCV_LIBS} )
+TARGET_LINK_LIBRARIES( matching_test ${CERES_LIBRARIES})
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "-O2")        ## Optimize

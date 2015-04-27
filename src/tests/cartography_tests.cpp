@@ -313,7 +313,7 @@ void testOdometry()
     assertEqual(xi.trans(), cartograph.trajectory[1].trans());
 }
 
-void testCartography()
+int main(int argc, char** argv)
 {
     cout << "### Geometry tests ### " << flush;
     testGeometry();
@@ -334,7 +334,9 @@ void testCartography()
     cout << "### Bundle Adjustment tests ### " << flush;
     testBundleAdjustment();
     cout << "OK" << endl;
+    return 0;
 }
+
 
 /* EPIPOLAR TESTS
 TODO: TO BE DONE IN THE FUTURE

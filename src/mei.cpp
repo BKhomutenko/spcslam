@@ -13,12 +13,12 @@ double logistic(double x)
     return ex/(1 + ex);
 }
 
-MeiCamera::MeiCamera(int W, int H, double * parameters) : Camera(W, H, 6)
+MeiCamera::MeiCamera(int W, int H, const double * const parameters) : Camera(W, H, 6)
 {  
     setParameters(parameters);
 }
 
-MeiCamera::MeiCamera(double * parameters)  : Camera(1, 1, 6)
+MeiCamera::MeiCamera(const double * const parameters)  : Camera(1, 1, 6)
 {  
     setParameters(parameters);
 }
@@ -96,12 +96,12 @@ bool MeiCamera::projectionJacobian(const Eigen::Vector3d & src, Eigen::Matrix<do
     double gamma = 1 - alpha;
     double d = alpha * rho + gamma * z;
     double k = 1 / d / d;
-    Jac(0,0) = fu * k * (gamma*z + alpha*rho - alpha*beta*x*x/rho);
-    Jac(0,1) = -fu * k * alpha*beta*x*y/rho;
-    Jac(0,2) = -fu * k * x * (gamma + alpha*z/rho);
-    Jac(1,0) = -fv * k * alpha*beta*x*y/rho;    
-    Jac(1,1) = fv * k * (gamma*z + alpha*rho - alpha*beta*y*y/rho);
-    Jac(1,2) = -fv * k * y * (gamma + alpha*z/rho);
+    Jac(0,0) = fu * k * (gamma * z + alpha * rho - alpha * beta * x * x / rho);
+    Jac(0,1) = -fu * k * alpha * beta * x * y / rho;
+    Jac(0,2) = -fu * k * x * (gamma + alpha * z / rho);
+    Jac(1,0) = -fv * k * alpha * beta * x * y / rho;    
+    Jac(1,1) = fv * k * (gamma * z + alpha * rho - alpha * beta * y * y / rho);
+    Jac(1,2) = -fv * k * y * (gamma + alpha * z / rho);
 
     return true;
 
@@ -113,5 +113,5 @@ void MeiCamera::setParameters(const double * const newParams)
     params[0] = logistic(params[0]);
     params[1] = exp(params[1]);
 }
-    
+        
     

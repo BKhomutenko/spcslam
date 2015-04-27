@@ -69,13 +69,14 @@ vector<testPoint> initCloud()
     return cloud;
 }
 
-void testMatching()
+int main(int argc, char** argv)
 {
     testBruteForce();
 
     testStereoMatch();
 
     testMatchReprojected();
+    return 0;
 }
 
 void testBruteForce()
@@ -523,12 +524,12 @@ void displayBins(const StereoSystem & stereo)
     Matcher matcher;
     matcher.initStereoBins(stereo);
 
-    cv::Mat imageL(stereo.cam1.height, stereo.cam1.width, CV_8UC1);
-    cv::Mat imageR(stereo.cam2.height, stereo.cam2.width, CV_8UC1);
+    cv::Mat imageL(stereo.cam1->height, stereo.cam1->width, CV_8UC1);
+    cv::Mat imageR(stereo.cam2->height, stereo.cam2->width, CV_8UC1);
 
-    for (int i = 0; i < stereo.cam1.height; i++)
+    for (int i = 0; i < stereo.cam1->height; i++)
     {
-        for (int j = 0; j < stereo.cam1.width; j++)
+        for (int j = 0; j < stereo.cam1->width; j++)
         {
             int k = abs(matcher.binMapL(i,j) % 2);
 
@@ -536,9 +537,9 @@ void displayBins(const StereoSystem & stereo)
         }
     }
 
-    for (int i = 0; i < stereo.cam2.height; i++)
+    for (int i = 0; i < stereo.cam2->height; i++)
     {
-        for (int j = 0; j < stereo.cam2.width; j++)
+        for (int j = 0; j < stereo.cam2->width; j++)
         {
             int k = abs(matcher.binMapR(i,j) % 2);
 
