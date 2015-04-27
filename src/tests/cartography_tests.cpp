@@ -154,8 +154,8 @@ void testGeometry()
 void testVision()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera cam1mei(params);   
-    MeiCamera cam2mei(params);
+    MeiCamera<double> cam1mei(params);   
+    MeiCamera<double> cam2mei(params);
     
     const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
@@ -182,7 +182,7 @@ void testVision()
 void testMei()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera cam1mei(params);
+    MeiCamera<double> cam1mei(params);
     
     for (int i = -3; i < 3; i++)
     {
@@ -211,8 +211,8 @@ void testMei()
 void testBundleAdjustment()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera cam1mei(params);
-    MeiCamera cam2mei(params);
+    MeiCamera<double> cam1mei(params);
+    MeiCamera<double> cam2mei(params);
     const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
     Transformation<double> T1, T2(tR, qR);
@@ -272,7 +272,7 @@ void testBundleAdjustment()
 void testOdometry()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera cam1mei(params);   MeiCamera cam2mei(params);
+    MeiCamera<double> cam1mei(params);   MeiCamera<double> cam2mei(params);
     
     const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?

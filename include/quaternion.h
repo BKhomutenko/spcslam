@@ -8,16 +8,16 @@ All necessary geometric transformations
 //Eigen
 #include <Eigen/Eigen>
 
-template<class T>
+template<typename T>
 using Vector2 = Eigen::Matrix<T, 2, 1>; 
-template<class T>
+template<typename T>
 using Vector3 = Eigen::Matrix<T, 3, 1>; 
-template<class T>
+template<typename T>
 using Matrix3 = Eigen::Matrix<T, 3, 3>; 
 
 using namespace std;
 
-template<class T>
+template<typename T>
 class Quaternion
 {
 public:

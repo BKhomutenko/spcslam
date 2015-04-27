@@ -17,8 +17,8 @@ int main(int argc, char** argv) {
     
     array<double, 6> params{0.1, 0.1, 500, 500, 650, 450};
     
-    MeiCamera cam1(params.data());
-    MeiCamera cam2(params.data());
+    MeiCamera<double> cam1(params.data());
+    MeiCamera<double> cam2(params.data());
     
     Transformation<double> T(1, 0.1, 0.1, 0.1, -0.1, 0.1);
     

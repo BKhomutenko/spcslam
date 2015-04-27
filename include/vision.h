@@ -20,7 +20,7 @@ using namespace std;
 
 enum CameraID {LEFT, RIGHT};
 
-template<class T>
+template<typename T>
 class Camera
 {
 public:

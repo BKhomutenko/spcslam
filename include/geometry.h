@@ -13,17 +13,17 @@ All necessary geometric transformations
 
 #include "quaternion.h"
 
-template<class T>
+template<typename T>
 using Vector2 = Eigen::Matrix<T, 2, 1>; 
-template<class T>
+template<typename T>
 using Vector3 = Eigen::Matrix<T, 3, 1>; 
-template<class T>
+template<typename T>
 using Matrix3 = Eigen::Matrix<T, 3, 3>; 
 
 using namespace std;
 //TODO think about how to perform the combination of these transformations
 
-template<class T>
+template<typename T>
 Matrix3<T> rotationMatrix(const Vector3<T> & v)
 {
     Matrix3<T> R;
@@ -61,7 +61,7 @@ Matrix3<T> rotationMatrix(const Vector3<T> & v)
 }
 
 
-template<class T>
+template<typename T>
 inline Matrix3<T> hat(const Vector3<T> & u)
 {
     Matrix3<T> M;
@@ -73,7 +73,7 @@ inline Matrix3<T> hat(const Vector3<T> & u)
 // Non-redundant transformation representation
 // using translation and angle-axis
 
-template<class T>
+template<typename T>
 class Transformation
 {
 public:
@@ -197,7 +197,7 @@ private:
 
 };
 
-//template<class T>
+//template<typename T>
 //ostream& operator << (ostream& os, const Transformation & transfo)
 //{
 //    os << transfo.mtrans.transpose() << " # " << transfo.mrot.transpose();

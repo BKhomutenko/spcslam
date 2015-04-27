@@ -16,7 +16,6 @@ include_directories(include)
 add_executable( calibration
     src/main.cpp
     src/vision.cpp
-    src/mei.cpp
     src/calibration.cpp
 )
 
@@ -26,7 +25,6 @@ TARGET_LINK_LIBRARIES( calibration ${CERES_LIBRARIES})
 add_executable( cartography_test
     src/cartography.cpp
     src/vision.cpp
-    src/mei.cpp
     src/matcher.cpp
     src/tests/cartography_tests.cpp
 )
@@ -36,7 +34,6 @@ TARGET_LINK_LIBRARIES( cartography_test ${CERES_LIBRARIES})
 
 add_executable( matching_test
     src/vision.cpp
-    src/mei.cpp
     src/matcher.cpp
     src/extractor.cpp
     src/tests/matching_tests.cpp
