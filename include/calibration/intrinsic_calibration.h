@@ -11,8 +11,8 @@ private:
     
     using GenericCameraCalibration<Camera>::initializeIntrinsic;
     using GenericCameraCalibration<Camera>::extractGridProjection;
-    using GenericCameraCalibration<Camera>::generateOriginal;
-    using GenericCameraCalibration<Camera>::estimateInitialBoard;
+    using GenericCameraCalibration<Camera>::constructGrid;
+    using GenericCameraCalibration<Camera>::estimateInitialGrid;
     using GenericCameraCalibration<Camera>::initIntrinsicProblem;
     using GenericCameraCalibration<Camera>::residualAnalysis;
         
@@ -22,8 +22,9 @@ public:
     //TODO chanche the file formatting
     bool initialize(const string & infoFileName)
     {
+        cout << "### Initialize calibration data ###" << endl;
         if (not initializeIntrinsic(infoFileName, monoCalibDataVec)) return false;
-        generateOriginal();
+        constructGrid();
         return true;
     }
     
@@ -40,7 +41,7 @@ public:
         } 
         
         //initial board positions estimation
-        estimateInitialBoard(camera, monoCalibDataVec);
+        estimateInitialGrid(camera, monoCalibDataVec);
         
         // Problem initialization
         Problem problem;

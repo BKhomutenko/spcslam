@@ -10,27 +10,27 @@ using Eigen::Vector3d;
 using Eigen::Vector2d;
 
 template<template<typename> class Camera>
-struct BoardProjection 
+struct GridProjection 
 {
-    BoardProjection(const vector<Vector2d> & proj, const vector<Vector3d> & orig)
-    : _proj(proj), _orig(orig) {}
+    GridProjection(const vector<Vector2d> & proj, const vector<Vector3d> & grid)
+    : _proj(proj), _grid(grid) {}
             
     template <typename T>
     bool operator()(const T * const* params,
                     T* residual) const 
     {
-        Camera<T> camera(params[0]);
-        Transformation<T> transfo(params[1]);
-        
-        vector<Vector3<T>> transformedPoints(_orig.size());
-        for (int i = 0; i < _orig.size(); i++)
+        Transformation<T> TbaseGrid(params[1]);
+        vector<Vector3<T>> transformedPoints(_grid.size());
+        for (int i = 0; i < _grid.size(); i++)
         {
-            transformedPoints[i] = _orig[i].template cast<T>();
+            transformedPoints[i] = _grid[i].template cast<T>();
         }
-        transfo.transform(transformedPoints, transformedPoints);
+        TbaseGrid.transform(transformedPoints, transformedPoints);
         
+        Camera<T> camera(params[0]);
         vector<Vector2<T>> projectedPoints;
         camera.projectPointCloud(transformedPoints, projectedPoints);
+        
         for (unsigned int i = 0; i < projectedPoints.size(); i++)
         {
             Vector2<T> diff = _proj[i].template cast<T>() - projectedPoints[i];
@@ -40,37 +40,37 @@ struct BoardProjection
         return true;
     }
     
-    vector<Vector2d> _proj;
-    vector<Vector3d> _orig;
+    const vector<Vector2d> & _proj;
+    const vector<Vector3d> & _grid;
 };
    
 template<template<typename> class Camera>
-struct BoardEstimate
+struct GridEstimate
 {
-    BoardEstimate(const vector<Vector2d> & proj, const vector<Vector3d> & orig,
-    const vector<double> & camParams) : _proj(proj), _orig(orig), _camParams(camParams) {}
+    GridEstimate(const vector<Vector2d> & proj, const vector<Vector3d> & grid,
+    const vector<double> & camParams) : _proj(proj), _grid(grid), _camParams(camParams) {}
             
     template <typename T>
     bool operator()(const T * const * params,
                     T* residual) const 
     {
+        Transformation<T> TbaseGrid(params[0]);
+        vector<Vector3<T>> transformedPoints(_grid.size());
+        for (int i = 0; i < _grid.size(); i++)
+        {
+            transformedPoints[i] = _grid[i].template cast<T>();
+        }
+        TbaseGrid.transform(transformedPoints, transformedPoints);
+        
         vector<T> camParamsT(_camParams.size());
         for (int i = 0; i < _camParams.size(); i++)
         {
             camParamsT[i] = T(_camParams[i]);
         }
         Camera<T> camera(camParamsT.data());
-        Transformation<T> transfo(params[0]);
-        
-        vector<Vector3<T>> transformedPoints(_orig.size());
-        for (int i = 0; i < _orig.size(); i++)
-        {
-            transformedPoints[i] = _orig[i].template cast<T>();
-        }
-        transfo.transform(transformedPoints, transformedPoints);
-        
         vector<Vector2<T>> projectedPoints;
         camera.projectPointCloud(transformedPoints, projectedPoints);
+        
         for (unsigned int i = 0; i < projectedPoints.size(); i++)
         {
             Vector2<T> diff = _proj[i].template cast<T>() - projectedPoints[i];
@@ -80,9 +80,9 @@ struct BoardEstimate
         return true;
     }
     
-    vector<double> _camParams;
-    vector<Vector2d> _proj;
-    vector<Vector3d> _orig;
+    const vector<double> & _camParams;
+    const vector<Vector2d> & _proj;
+    const vector<Vector3d> & _grid;
 };
 
 #endif

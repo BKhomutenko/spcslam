@@ -52,8 +52,8 @@ Intrinsic 2 :
     
     ExtrinsicCameraCalibration<MeiCamera> calibStereo;
     
-    if (calibStereo.initialize("calibInfoLeftSmall.txt","calibInfoRightSmall.txt", "calibInfoStereo.txt"))
-//    if (calibStereo.initialize("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt"))
+//    if (calibStereo.initialize("calibInfoLeftSmall.txt","calibInfoRightSmall.txt", "calibInfoStereo.txt"))
+    if (calibStereo.initialize("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt"))
     {
         calibStereo.compute(cam1, cam2, xi);
         calibStereo.residualAnalysis(cam1, cam2, xi);

@@ -4,9 +4,9 @@
 #include "generic_calibration.h"
 
 template<template<typename> class Camera>
-struct StereoBoardProjection 
+struct StereoGridProjection 
 {
-    StereoBoardProjection(const vector<Eigen::Vector2d> & proj,
+    StereoGridProjection(const vector<Eigen::Vector2d> & proj,
             const vector<Eigen::Vector3d> & orig) : _proj(proj), _orig(orig) {}
             
     template <typename T>
@@ -14,16 +14,16 @@ struct StereoBoardProjection
                     T* residual) const 
     {
         Camera<T> camera(params[0]);
-        Transformation<T> T0b(params[1]);
-        Transformation<T> T0c(params[2]);
-        Transformation<T> Tcb = T0c.inverseCompose(T0b);
+        Transformation<T> TrefGrid(params[1]);
+        Transformation<T> TrefCam(params[2]);
+        Transformation<T> TcamGrid = TrefCam.inverseCompose(TrefGrid);
         
         vector<Vector3<T>> transformedPoints(_orig.size());
         for (int i = 0; i < _orig.size(); i++)
         {
             transformedPoints[i] = _orig[i].template cast<T>();
         }
-        Tcb.transform(transformedPoints, transformedPoints);
+        TcamGrid.transform(transformedPoints, transformedPoints);
         
         vector<Vector2<T>> projectedPoints;
         camera.projectPointCloud(transformedPoints, projectedPoints);
@@ -36,8 +36,8 @@ struct StereoBoardProjection
         return true;
     }
     
-    vector<Vector2d> _proj;
-    vector<Vector3d> _orig;
+    const vector<Vector2d> & _proj;
+    const vector<Vector3d> & _orig;
 };
 
 template<template<typename> class Camera>
@@ -64,15 +64,15 @@ struct StereoEstimate
         {
             extrinsic[i] = T(_extrinsic[i]);
         }
-        Transformation<T> T0b(extrinsic.data());
-        Transformation<T> T0c(params[0]);
-        Transformation<T> Tcb = T0c.inverseCompose(T0b);
+        Transformation<T> TrefGrid(extrinsic.data());
+        Transformation<T> TrefCam(params[0]);
+        Transformation<T> TcamGrid = TrefCam.inverseCompose(TrefGrid);
         vector<Vector3<T>> transformedPoints(_orig.size());
         for (int i = 0; i < _orig.size(); i++)
         {
             transformedPoints[i] = _orig[i].template cast<T>();
         }
-        Tcb.transform(transformedPoints, transformedPoints);
+        TcamGrid.transform(transformedPoints, transformedPoints);
         
         vector<Vector2<T>> projectedPoints;
         camera.projectPointCloud(transformedPoints, projectedPoints);
@@ -85,10 +85,10 @@ struct StereoEstimate
         return true;
     }
     
-    array<double, 6> _extrinsic;
-    vector<double> _camParams;
-    vector<Vector2d> _proj;
-    vector<Vector3d> _orig;
+    const array<double, 6> & _extrinsic;
+    const vector<double> & _camParams;
+    const vector<Vector2d> & _proj;
+    const vector<Vector3d> & _orig;
 };
 
 template<template<typename> class Camera>
@@ -103,13 +103,13 @@ private:
     // methods
     using GenericCameraCalibration<Camera>::initializeIntrinsic;
     using GenericCameraCalibration<Camera>::extractGridProjection;
-    using GenericCameraCalibration<Camera>::generateOriginal;
-    using GenericCameraCalibration<Camera>::estimateInitialBoard;
+    using GenericCameraCalibration<Camera>::constructGrid;
+    using GenericCameraCalibration<Camera>::estimateInitialGrid;
     using GenericCameraCalibration<Camera>::initIntrinsicProblem;
     using GenericCameraCalibration<Camera>::residualAnalysis;
     
     // fields
-    using GenericCameraCalibration<Camera>::original;
+    using GenericCameraCalibration<Camera>::grid;
     using GenericCameraCalibration<Camera>::Nx;
     using GenericCameraCalibration<Camera>::Ny;
     
@@ -127,7 +127,7 @@ public:
         {
             return false;
         }
-        generateOriginal();
+        constructGrid();
         
         if (not initializeExtrinsic(infoFileNameStereo)) return false;
         return true;
@@ -149,29 +149,40 @@ public:
         
         stereoCalibDataVec1.clear();
         stereoCalibDataVec2.clear();
+        
         string imageFolder;
         string imageName;    
         string leftPref, rightPref;
+        
         getline(calibInfoFile, imageFolder);
         getline(calibInfoFile, leftPref);
         getline(calibInfoFile, rightPref);
         while (getline(calibInfoFile, imageName))
         {
             CalibrationData calibDataLeft, calibDataRight;
-            
             vector<Vector2d> point1Vec, point2Vec;
             bool isExtracted1, isExtracted2;
+            
             calibDataLeft.fileName = imageFolder + leftPref + imageName;
             isExtracted1 = extractGridProjection(calibDataLeft, checkExtraction);
+            
             calibDataRight.fileName = imageFolder + rightPref + imageName;                                     
             isExtracted2 = extractGridProjection(calibDataRight, checkExtraction);
-                                                 
-            if (not isExtracted1 or not isExtracted2) continue;
+            
+            if (not isExtracted1 or not isExtracted2) 
+            {
+                continue;
+            }
+            
             calibDataLeft.extrinsic = ArraySharedPtr(new array<double, 6>{0, 0, 1, 0, 0, 0});
             calibDataRight.extrinsic = calibDataLeft.extrinsic;
+            
             stereoCalibDataVec1.push_back(calibDataLeft);
             stereoCalibDataVec2.push_back(calibDataRight);
+            
+            cout << "." << flush;
         }
+        cout << "done" << endl;
         return true;
     }
     
@@ -180,13 +191,13 @@ public:
             array<double, 6> & extrinsic,
             vector<CalibrationData> & calibDataVec)
     {
-        typedef DynamicAutoDiffCostFunction<StereoBoardProjection<Camera>> stereoProjectionCF;
+        typedef DynamicAutoDiffCostFunction<StereoGridProjection<Camera>> stereoProjectionCF;
         for (unsigned int i = 0; i < calibDataVec.size(); i++)
         {
-            StereoBoardProjection<Camera> * stereoProjection;
-            stereoProjection = new StereoBoardProjection<Camera>(
+            StereoGridProjection<Camera> * stereoProjection;
+            stereoProjection = new StereoGridProjection<Camera>(
                                         calibDataVec[i].projection,
-                                        original);
+                                        grid);
             
             stereoProjectionCF * costFunction = new stereoProjectionCF(stereoProjection);
             costFunction->AddParameterBlock(intrinsic.size());
@@ -209,7 +220,7 @@ public:
             typedef DynamicAutoDiffCostFunction<StereoEstimate<Camera>> dynamicProjectionCF;
 
             StereoEstimate<Camera> * stereoEstimate;
-            stereoEstimate = new StereoEstimate<Camera>(calibDataVec[i].projection, original,
+            stereoEstimate = new StereoEstimate<Camera>(calibDataVec[i].projection, grid,
                                                 camera.params, *(calibDataVec[i].extrinsic));
             dynamicProjectionCF * costFunction = new dynamicProjectionCF(stereoEstimate);
             costFunction->AddParameterBlock(6);
@@ -227,9 +238,9 @@ public:
     bool estimateExtrinsic(Camera<double> & cam1, Camera<double> & cam2,
             array<double, 6> & extrinsic)
     {
-        estimateInitialBoard(cam1, monoCalibDataVec1);
-        estimateInitialBoard(cam2, monoCalibDataVec2);
-        estimateInitialBoard(cam1, stereoCalibDataVec1);
+        estimateInitialGrid(cam1, monoCalibDataVec1);
+        estimateInitialGrid(cam2, monoCalibDataVec2);
+        estimateInitialGrid(cam1, stereoCalibDataVec1);
         estimateInitialExtrinsic(cam2, extrinsic, stereoCalibDataVec2);
     }
     
@@ -275,15 +286,14 @@ public:
             
         Solver::Options options;
         options.max_num_iterations = 500;
-    //    options.linear_solver_type = ceres::DENSE_QR;
         
         options.function_tolerance = 1e-15;
         options.gradient_tolerance = 1e-10;
         options.parameter_tolerance = 1e-10;
-        options.minimizer_progress_to_stdout = true;
+//        options.minimizer_progress_to_stdout = true;
         Solver::Summary summary;
         Solve(options, &problem, &summary);
-        cout << summary.BriefReport() << endl;
+//        cout << summary.BriefReport() << endl;
         
         cam1.setParameters(intrinsic1.data());
         cam2.setParameters(intrinsic2.data());

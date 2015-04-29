@@ -2,6 +2,8 @@
 #define _SPCMAP_GENERIC_CALIBRATION_H_
 
 #include <cmath>
+#include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <string>
 #include <algorithm>
@@ -45,7 +47,7 @@ protected:
     int Nx, Ny;
     double sqSize;
     double outlierThresh;
-    vector<Vector3d> original;
+    vector<Vector3d> grid;
     
 public:
 
@@ -73,13 +75,21 @@ public:
             CalibrationData calibData;
             vector<Vector2d> projection;
             bool isExtracted;
+            
             calibData.fileName = imageFolder + imageName;
             isExtracted = extractGridProjection(calibData, checkExtraction);
             
-            if (not isExtracted) continue;            
+            if (not isExtracted)
+            {
+                continue;
+            }      
+                  
             calibData.extrinsic = ArraySharedPtr(new array<double, 6>{0, 0, 1, 0, 0, 0});
             calibDataVec.push_back(calibData);
+            
+            cout << "." << flush;
         }
+        cout << "done" << endl;
         return true;
     }
     
@@ -116,26 +126,26 @@ public:
         return true;
     }
 
-    void generateOriginal()
+    void constructGrid()
     {
-        original.resize(Nx * Ny);
+        grid.resize(Nx * Ny);
         for (unsigned int i = 0; i < Nx * Ny; i++)
         {
-            original[i] = Vector3d(sqSize * (i % Nx), sqSize * (i / Nx), 0);
+            grid[i] = Vector3d(sqSize * (i % Nx), sqSize * (i / Nx), 0);
         }
     }
 
-    void estimateInitialBoard(Camera<double> & camera,
+    void estimateInitialGrid(Camera<double> & camera,
             vector<CalibrationData> & calibDataVec)
     {
         for (int i = 0; i < calibDataVec.size(); i++)
         {
             Problem problem;
-            typedef DynamicAutoDiffCostFunction<BoardEstimate<Camera>> dynamicProjectionCF;
+            typedef DynamicAutoDiffCostFunction<GridEstimate<Camera>> dynamicProjectionCF;
 
-            BoardEstimate<Camera> * boardEstimate;
-            boardEstimate = new BoardEstimate<Camera>(calibDataVec[i].projection,
-                                        original, camera.params);
+            GridEstimate<Camera> * boardEstimate;
+            boardEstimate = new GridEstimate<Camera>(calibDataVec[i].projection,
+                                        grid, camera.params);
             dynamicProjectionCF * costFunction = new dynamicProjectionCF(boardEstimate);
             costFunction->AddParameterBlock(6);
             costFunction->SetNumResiduals(2 * Nx * Ny);
@@ -152,11 +162,11 @@ public:
     void initIntrinsicProblem(Problem & problem, vector<double> & intrinsic,
             vector<CalibrationData> & calibDataVec)
     {
-        typedef DynamicAutoDiffCostFunction<BoardProjection<Camera>> projectionCF;        
+        typedef DynamicAutoDiffCostFunction<GridProjection<Camera>> projectionCF;        
         for (unsigned int i = 0; i < calibDataVec.size(); i++)
         {
-            BoardProjection<Camera> * boardProjection;
-            boardProjection = new BoardProjection<Camera>(calibDataVec[i].projection, original);
+            GridProjection<Camera> * boardProjection;
+            boardProjection = new GridProjection<Camera>(calibDataVec[i].projection, grid);
             projectionCF * costFunction = new projectionCF(boardProjection);
             costFunction->AddParameterBlock(intrinsic.size());
             costFunction->AddParameterBlock(6);
@@ -174,7 +184,7 @@ public:
             
     void residualAnalysis(const Camera<double> & camera,
             const vector<CalibrationData> & calibDataVec,
-            const Transformation<double> & T0c)
+            const Transformation<double> & TrefCam)
     {
         
         double Ex = 0, Ey = 0;
@@ -182,12 +192,9 @@ public:
         for (unsigned int ptIdx = 0; ptIdx < calibDataVec.size(); ptIdx++)
         {
                 vector<Vector3d> transfModelVec;
-                Transformation<double> T0b(calibDataVec[ptIdx].extrinsic->data());
-                cout << T0b << endl;
-                cout << T0c << endl;
-                Transformation<double> Tcb = T0c.inverseCompose(T0b);
-                cout << Tcb << endl << endl;
-                Tcb.transform(original, transfModelVec);
+                Transformation<double> TrefGrid(calibDataVec[ptIdx].extrinsic->data());
+                Transformation<double> TcamGrid = TrefCam.inverseCompose(TrefGrid);
+                TcamGrid.transform(grid, transfModelVec);
                 
                 vector<Vector2d> projModelVec;
                 camera.projectPointCloud(transfModelVec, projModelVec);
