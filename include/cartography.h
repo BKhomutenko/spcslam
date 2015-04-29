@@ -163,7 +163,7 @@ public:
     
     //a chain of camera positions
     //first initialized with the odometry measurements
-    vector<Transformation<double> > trajectory;
+    vector<Transformation<double>> trajectory;
     //list<LandMark &> activeLM;
 
 };

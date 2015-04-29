@@ -14,16 +14,53 @@ using Eigen::JacobiSVD;
 int main(int argc, char** argv) {
     
     // Intrinsic calibration
-    
-    array<double, 6> params{0.1, 0.1, 500, 500, 650, 450};
-    
+    array<double, 6> params{0.5, 1, 500, 500, 500, 500};
+//    array<double, 6> params{0.571, 1.18, 378.304,
+//    377.959, 654.924, 474.837};
+
+//    array<double, 6> params2{0.570, 1.181, 377.262,
+//376.937, 659.913, 489.025};
+    /*
+    Intrinsic 1 : 
+0.285248 0.165322 378.304
+377.959 654.924 474.837
+Intrinsic 2 : 
+0.279888 0.170523 377.262
+376.937 659.913 489.025
+*/
     MeiCamera<double> cam1(params.data());
     MeiCamera<double> cam2(params.data());
     
-    Transformation<double> T(1, 0.1, 0.1, 0.1, -0.1, 0.1);
+    Transformation<double> xi(0, 0, 0, 0, 0, 0);
+//    Transformation<double> xi(0.788018, 0.00458991, -0.0203444, -0.00243237, 0.0859827, 0.000373778);
     
-    intrinsicCalibration("calibInfoLeft.txt", cam1);
-    intrinsicCalibration("calibInfoRight.txt", cam2);
+    IntrinsicCameraCalibration<MeiCamera> calibLeft;
+    IntrinsicCameraCalibration<MeiCamera> calibRight;
+    
+//    if (calibLeft.initialize("calibInfoLeft.txt"))
+//    {
+//        calibLeft.compute(cam1);
+//        calibLeft.residualAnalysis(cam1);
+//    }
+//    if (calibRight.initialize("calibInfoRight.txt"))
+//    {
+//        calibRight.compute(cam2);
+//        calibRight.residualAnalysis(cam2);
+//    }
+//    
+
+    
+    ExtrinsicCameraCalibration<MeiCamera> calibStereo;
+    
+    if (calibStereo.initialize("calibInfoLeftSmall.txt","calibInfoRightSmall.txt", "calibInfoStereo.txt"))
+//    if (calibStereo.initialize("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt"))
+    {
+        calibStereo.compute(cam1, cam2, xi);
+        calibStereo.residualAnalysis(cam1, cam2, xi);
+    }
+    
+    cout << "Extrinsic : " << endl;
+    cout << xi << endl;
     
     cout << "Intrinsic 1 : " << endl;
     for (auto & p : cam1.params)
@@ -37,7 +74,6 @@ int main(int argc, char** argv) {
         cout << boost::format("%3.3f ") % p;
     }
     cout << endl;
-    
 //    extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
 //            par1, par2, xi);
 //    

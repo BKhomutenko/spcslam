@@ -1,21 +1,9 @@
 /*
-All necessary geometric transformations
+Template-based quaternion implementation
 */
 
 #ifndef _SPCMAP_QUATERNION_H_
 #define _SPCMAP_QUATERNION_H_
-
-//Eigen
-#include <Eigen/Eigen>
-
-template<typename T>
-using Vector2 = Eigen::Matrix<T, 2, 1>; 
-template<typename T>
-using Vector3 = Eigen::Matrix<T, 3, 1>; 
-template<typename T>
-using Matrix3 = Eigen::Matrix<T, 3, 3>; 
-
-using namespace std;
 
 template<typename T>
 class Quaternion
@@ -28,19 +16,19 @@ public:
         T theta = rot.norm();
         if ( abs(theta) < 1e-6 )
         {
-            x = rot(0)/2;
-            y = rot(1)/2;
-            z = rot(2)/2;
-            w = 1 - theta*theta/8;  
+            x = rot(0) / 2.;
+            y = rot(1) / 2.;
+            z = rot(2) / 2.;
+            w = T(1.);  
         }
         else
         {
             Vector3<T> u = rot / theta;
-            T s = sin(theta/2);
-            x = u(0)*s;
-            y = u(1)*s;
-            z = u(2)*s;
-            w = cos(theta/2); 
+            T s = sin(theta / 2.);
+            x = u(0) * s;
+            y = u(1) * s;
+            z = u(2) * s;
+            w = cos(theta / 2.); 
         }
     } 
     
@@ -69,9 +57,9 @@ public:
         const T & v2 = v(1);
         const T & v3 = v(2);
         
-        T v1new = 2*((t7 + t9)*v1 + (t5 - t3)*v2 + (t2 + t6)*v3 ) + v1;
-        T v2new = 2*((t3 + t5)*v1 + (t4 + t9)*v2 + (t8 - t1)*v3 ) + v2;
-        T v3new = 2*((t6 - t2)*v1 + (t1 + t8)*v2 + (t4 + t7)*v3 ) + v3;
+        T v1new = 2.*((t7 + t9)*v1 + (t5 - t3)*v2 + (t2 + t6)*v3 ) + v1;
+        T v2new = 2.*((t3 + t5)*v1 + (t4 + t9)*v2 + (t8 - t1)*v3 ) + v2;
+        T v3new = 2.*((t6 - t2)*v1 + (t1 + t8)*v2 + (t4 + t7)*v3 ) + v3;
         
         return Vector3<T>(v1new, v2new, v3new);
     } 
@@ -79,11 +67,11 @@ public:
     Vector3<T> toRotationVector() const
     {
         T s = sqrt(x*x + y*y + z*z);
-        T th = 2 * atan2(s, w);
+        T th = 2. * atan2(s, w);
         Vector3<T> u(x, y, z);
         if (th < 1e-5)
         {
-            return u * 2;
+            return u * T(2.);
         }
         else
         {

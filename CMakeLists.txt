@@ -16,7 +16,6 @@ include_directories(include)
 add_executable( calibration
     src/main.cpp
     src/vision.cpp
-    src/calibration.cpp
 )
 
 target_link_libraries( calibration ${OpenCV_LIBS} )
