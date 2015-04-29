@@ -37,11 +37,11 @@ Intrinsic 2 :
     IntrinsicCameraCalibration<MeiCamera> calibLeft;
     IntrinsicCameraCalibration<MeiCamera> calibRight;
     
-//    if (calibLeft.initialize("calibInfoLeft.txt"))
-//    {
-//        calibLeft.compute(cam1);
-//        calibLeft.residualAnalysis(cam1);
-//    }
+    if (calibLeft.initialize("calibInfoLeftSmall.txt"))
+    {
+        calibLeft.compute(cam1);
+        calibLeft.residualAnalysis(cam1);
+    }
 //    if (calibRight.initialize("calibInfoRight.txt"))
 //    {
 //        calibRight.compute(cam2);

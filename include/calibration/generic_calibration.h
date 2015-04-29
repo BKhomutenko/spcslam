@@ -189,6 +189,10 @@ public:
         
         double Ex = 0, Ey = 0;
         double Emax = 0;
+        Mat errorPlot(400, 400, CV_32F, Scalar(0));
+        circle(errorPlot, Point(200, 200), 50, 0.4, 1);
+        circle(errorPlot, Point(200, 200), 100, 0.4, 1);
+        circle(errorPlot, Point(200, 200), 150, 0.4, 1);
         for (unsigned int ptIdx = 0; ptIdx < calibDataVec.size(); ptIdx++)
         {
                 vector<Vector3d> transfModelVec;
@@ -200,6 +204,7 @@ public:
                 camera.projectPointCloud(transfModelVec, projModelVec);
                 
                 Mat frame = imread(calibDataVec[ptIdx].fileName, 0);
+                
                 bool outlierDetected = false;
                 for (unsigned int i = 0; i < Nx * Ny; i++)
                 {
@@ -209,6 +214,10 @@ public:
                     circle(frame, Point(p(0), p(1)), 7, 127, 1);
                     circle(frame, Point(pModel(0), pModel(1)), 4.5, 255, 1);
                     Vector2d delta = p - pModel;
+                    errorPlot.at<float>(floor(delta(1)*100+ 200) , floor(delta(0)*100+ 200)) += 0.2;
+                    errorPlot.at<float>(floor(delta(1)*100+ 200), ceil(delta(0)*100+ 200)) += 0.2;
+                    errorPlot.at<float>(ceil(delta(1)*100+ 200), floor(delta(0)*100+ 200)) += 0.2;
+                    errorPlot.at<float>(ceil(delta(1)*100+ 200), ceil(delta(0)*100+ 200)) += 0.2;
                     double dx = delta[0] * delta[0];
                     double dy = delta[1] * delta[1];
                     if (outlierThresh != 0 and dx + dy > outlierThresh * outlierThresh)
@@ -230,6 +239,8 @@ public:
                     waitKey();
                 }
         }
+        imshow("errorPlot", errorPlot);
+        waitKey();
         Ex /= calibDataVec.size() * Nx * Ny;
         Ey /= calibDataVec.size() * Nx * Ny;
         Ex = sqrt(Ex);
