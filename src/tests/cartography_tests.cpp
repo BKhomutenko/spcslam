@@ -282,8 +282,8 @@ void testOdometry()
     
     int maxNum = 250;
     
+    Odometry odometry(Transformation<double>(), cartograph.stereo);
     vector<Vector2d> proj1, proj2;
-    vector<Vector3d> cloud;
     
     cartograph.LM.resize(maxNum);
     
@@ -293,25 +293,25 @@ void testOdometry()
      
     for (unsigned int i = 0; i < maxNum; i++)
     {
-        cloud.push_back(Vector3d(10*sin(i),
+        odometry.cloud.push_back(Vector3d(10*sin(i),
                         10*std::cos(i*1.7),
                         15.2+5*std::sin(i/3.14)));
     }
-    cartograph.projectPointCloud(cloud, proj1, proj2, 1); 
+    cartograph.projectPointCloud(odometry.cloud, odometry.observationVec, proj2, 1); 
     
     for (unsigned int i = 0; i < maxNum; i += 3)
     {
-        proj1[i] = Vector2d::Random()*100;
-        proj1[i][0] += 100;
-        proj1[i][1] += 100;
+        odometry.observationVec[i] = Vector2d::Random()*100;
+        odometry.observationVec[i][0] += 100;
+        odometry.observationVec[i][1] += 100;
     }
-    vector<bool> inlierMask(maxNum);
     
-    Transformation<double> xi;
-    cartograph.odometryRansac(proj1, cloud, inlierMask, xi);
-    cartograph.computeTransformation(proj1, cloud, inlierMask, xi);
-    assertEqual(xi.rot(), cartograph.trajectory[1].rot());
-    assertEqual(xi.trans(), cartograph.trajectory[1].trans());
+    
+    
+    odometry.Ransac();
+    odometry.computeTransformation();
+    assertEqual(odometry.TorigBase.rot(), cartograph.trajectory[1].rot());
+    assertEqual(odometry.TorigBase.trans(), cartograph.trajectory[1].trans());
 }
 
 int main(int argc, char** argv)

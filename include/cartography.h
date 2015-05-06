@@ -31,6 +31,7 @@ using Eigen::Vector2d;
 using Eigen::Vector3d;
 using Eigen::Matrix3d;
 
+inline double sinc(const double x);
 
 struct Observation
 {
@@ -56,6 +57,46 @@ struct LandMark
     
     // All Vec6drealted measurements
     vector<Observation> observations;
+};
+
+template<template<typename> class Projector>
+struct OdometryError 
+{
+    OdometryError(const Vector2d pt,
+        const Vector3d X,
+        const Transformation<double> & camPose,
+        const vector<double> & params) 
+        : u(pt[0]), v(pt[1]), params(params), X(X)
+    { camPose.toRotTransInv(Rcb, Pcb); }
+
+    // The args are double[3] trans, double[3] rot
+    template <typename T>
+    bool operator()(const T * transParams,
+                    const T * rotParams,
+                    T* residual) const 
+    {
+        Vector3<T> rot = Vector3<T>(rotParams);
+        Matrix3<T> Rbo = rotationMatrix<T>(-rot);
+        Vector3<T> Pob = Vector3<T>(transParams);    
+        Vector3<T> XT = X.template cast<T>();
+        X = Rcb.template cast<T>() * (Rbo * (XT - Pob)) + Pcb.template cast<T>();
+        Vector2<T> point;
+        vector<T> paramsT(params.begin(), params.end());
+        Projector<T>::compute(paramsT.data(), X.data(), point.data());
+        residual[0] = point[0] - T(u);
+        residual[1] = point[1] - T(v);
+        return true;    
+    }
+    
+    // The observed landmark position
+    const double u, v;
+    
+    // Transformation information
+    Vector3d Pcb;
+    Matrix3d Rcb;
+    Vector3d X;
+    // Parameters needed for the Projector
+    const vector<double> & params;
 };
 
 template<template<typename> class Projector>
@@ -178,6 +219,197 @@ struct ReprojectionErrorFixed : public ceres::SizedCostFunction<2, 3>
     
 };*/
 
+//template<template<typename> class Projector>
+class Odometry
+{
+public:
+    vector<Vector2d> observationVec;
+    vector<Vector3d> cloud;
+    vector<bool> inlierMask;
+    Transformation<double> TorigBase;
+    const StereoSystem & stereo;
+    Odometry(const Transformation<double> TorigBase, const StereoSystem & stereo) 
+            : TorigBase(TorigBase), stereo(stereo) {}
+    
+    void computeTransformation()
+    {
+        assert(observationVec.size() == cloud.size());
+        assert(observationVec.size() == inlierMask.size());
+        Matrix3d Rcb;
+        Vector3d Pcb;
+        stereo.pose1.toRotTransInv(Rcb, Pcb);
+        ICamera * camera = stereo.cam1;
+        //TODO add a termination criterion
+        for (unsigned int optimIter = 0; optimIter < 10; optimIter++)
+        {
+            Matrix3d Rbo, LxiInv;
+            Vector3d Pbo;
+            TorigBase.toRotTransInv(Rbo, Pbo);
+            Vector3d u = TorigBase.rot();
+            double theta = u.norm();
+            if ( theta != 0)
+            {
+                u /= theta;
+                Matrix3d uhat = hat(u);
+                LxiInv = Matrix3d::Identity() + 
+                    theta/2*sinc(theta/2)*uhat + 
+                    (1 - sinc(theta))*uhat*uhat;
+            }
+            else
+            {
+                LxiInv = Matrix3d::Identity();
+            }
+            Eigen::Matrix<double, 6, 6> JTJ = Eigen::Matrix<double, 6, 6>::Zero();
+            Eigen::Matrix<double, 6, 1> JTerr = Eigen::Matrix<double, 6, 1>::Zero();
+            double ERR = 0;
+            for (unsigned int i = 0; i < observationVec.size(); i++)
+            {
+                if (not inlierMask[i])
+                {
+                    continue;
+                }
+
+                Vector3d X = Rbo*cloud[i] + Pbo;
+                X = Rcb*X + Pcb;
+                Vector2d err;
+                camera->projectPoint(X, err);
+                err = observationVec[i] - err;
+                ERR += err.norm();
+                Matrix3d Rco = Rcb * Rbo;
+                Eigen::Matrix<double, 2, 3> Jx;
+                camera->projectionJacobian(X, Jx);
+                
+                Eigen::Matrix<double, 2, 6> Jcam;
+                Jcam << -Jx * Rco, Jx * hat(X) * Rco * LxiInv;
+                JTJ += Jcam.transpose()*Jcam;
+                JTerr += Jcam.transpose()*err;           
+            }
+            auto dxi = JTJ.inverse()*JTerr;
+            TorigBase.trans() += dxi.head<3>();
+            TorigBase.rot() += dxi.tail<3>();
+        }
+    }
+    
+            
+    void Ransac()
+    {
+        assert(observationVec.size() == cloud.size());
+        int numPoints = observationVec.size();
+        
+        inlierMask.resize(numPoints);
+        
+        int numIterMax = 25;
+        const Transformation<double> initialPose = TorigBase;
+        Transformation<double> pose;
+        int bestInliers = 0;
+        //TODO add a termination criterion
+        for (unsigned int iteration = 0; iteration < numIterMax; iteration++)
+        {
+            int maxIdx = observationVec.size();
+            //choose three points at random
+		    int idx1m = rand() % maxIdx;
+		    int idx2m = 0;
+		    int idx3m = 0;
+		    do 
+		    {
+			    idx2m = rand() % maxIdx;
+		    } while (idx2m == idx1m);
+		
+		    do 
+		    {
+			    idx3m = rand() % maxIdx;
+		    } while (idx3m == idx1m or idx3m == idx2m);
+            
+    //        cout << cloud[idx1m].transpose() << " ###### " << observationVec[idx1m].transpose() << endl; 
+    //        cout << cloud[idx2m].transpose() << " ###### " << observationVec[idx2m].transpose() << endl;
+    //        cout << cloud[idx3m].transpose() << " ###### " << observationVec[idx3m].transpose() << endl;
+    //        cout << endl;
+            pose = initialPose;        
+            //compute xi using these points
+            for (unsigned int i = 0; i < 10; i++)
+            {
+                double theta = pose.rot().norm();
+                Matrix3d uhat = hat(pose.rot());
+                Matrix3d LxiInv = Matrix3d::Identity() + 
+                    theta/2*sinc(theta/2)*uhat + 
+                    (1 - sinc(theta))*uhat*uhat;
+                    
+                Matrix3d Rbo, Rcb;
+                Vector3d Pbo, Pcb;
+                
+                pose.toRotTransInv(Rbo, Pbo);
+                stereo.pose1.toRotTransInv(Rcb, Pcb);
+                
+                Vector3d X1, X2, X3;            
+                Vector2d Err1, Err2, Err3;
+                Eigen::Matrix<double, 2, 3> J1, J2, J3;
+                
+                X1 = Rcb*(Rbo*cloud[idx1m] + Pbo) + Pcb;
+                stereo.cam1->projectPoint(X1, Err1);
+                stereo.cam1->projectionJacobian(X1, J1);
+                
+                X2 = Rcb*(Rbo*cloud[idx2m] + Pbo) + Pcb;
+                stereo.cam1->projectPoint(X2, Err2);
+                stereo.cam1->projectionJacobian(X2, J2);
+                
+                X3 = Rcb*(Rbo*cloud[idx3m] + Pbo) + Pcb;
+                stereo.cam1->projectPoint(X3, Err3);            
+                stereo.cam1->projectionJacobian(X3, J3);
+                
+                Eigen::Matrix<double, 6, 6> J;
+                Matrix3d Rco = Rcb * Rbo;
+                
+                J << -J1 * Rco, J1 * hat(X1) * Rco * LxiInv,
+                    -J2 * Rco, J2 * hat(X2) * Rco * LxiInv,
+                    -J3 * Rco, J3 * hat(X3) * Rco * LxiInv;
+                Eigen::Matrix<double, 6, 1> E, dxi;
+                E << observationVec[idx1m] - Err1,
+                     observationVec[idx2m] - Err2,
+                     observationVec[idx3m] - Err3;
+                dxi = J.inverse() * E;
+                
+                pose.trans() += dxi.head<3>();
+                pose.rot() += dxi.tail<3>();
+                
+                if (iteration < 0)
+                {
+                    cout << (observationVec[idx1m] - Err1).transpose() << endl;
+                    cout << (observationVec[idx2m] - Err2).transpose() << endl;
+                    cout << (observationVec[idx3m] - Err3).transpose() << endl;
+                    cout << " ##### " << endl;
+                }
+            }
+            
+            //count inliers
+            vector<Vector3d> XbaseVec(numPoints);
+            pose.inverseTransform(cloud, XbaseVec);
+            vector<Vector2d> p1Vec(numPoints), p2Vec(numPoints);
+            stereo.projectPointCloud(XbaseVec, p1Vec, p2Vec);
+            vector<bool> currentInlierMask(numPoints, false);
+            
+            int countInliers = 0;
+            for (unsigned int i = 0; i < numPoints; i++)
+            {   
+    //            cout << observationVec[i] << " " <<  p1Vec[i]<< endl;
+                Vector2d err = observationVec[i] - p1Vec[i];
+                if (err.norm() < 2)
+                {
+                    currentInlierMask[i] = true;
+                    countInliers++;
+                }
+            }
+            //keep the best hypothesis
+            if (countInliers > bestInliers)
+            {
+                //cout << "improvement "  << countInliers << " " <<  bestInliers << endl;
+                //TODO copy in a bettegit lor way
+                inlierMask = currentInlierMask;
+                bestInliers = countInliers;
+                TorigBase = pose;
+            }        
+        }
+    }
+};
 
 //TODO implement camera calibration in the future
 template<template<typename> class Projector>
@@ -291,19 +523,7 @@ public:
 
     }   
     
-    // Observation are supposed to be made by the left camera (cam1, pose1)
-    Transformation<double> computeTransformation(
-        const vector<Vector2d> & observationVec,
-        const vector<Vector3d> & cloud, 
-        const vector<bool> & inlierMask, 
-        Transformation<double> & xi);
-            
-    void odometryRansac(
-        const vector<Vector2d> & observationVec,
-        const vector<Vector3d> & cloud,
-        vector<bool> & inlierMask,
-        Transformation<double> & xi);
-            
+                
     Transformation<double> estimateOdometry(const vector<Feature> & featureVec);
     // take 300 last landmarks 
     // BF matching
