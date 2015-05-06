@@ -153,8 +153,8 @@ void testStereoMatch()
     cout << "### Stereo Match Test ### " << flush;
 
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera<double> cam1mei(1296, 966, params);   
-    MeiCamera<double> cam2mei(1296, 966, params);
+    MeiCamera cam1mei(1296, 966, params);   
+    MeiCamera cam2mei(1296, 966, params);
 
     // estrinsic parameters
     const Vector3d r(5*3.1415926/180, 2*3.1415926/180, -3*3.1415926/180); // (x, y, z), vector for 2R1

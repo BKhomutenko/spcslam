@@ -31,7 +31,7 @@ public:
 
     //TODO make smart constructor with calibration data passed
     StereoSystem(Transformation<double> & p1, Transformation<double> & p2,
-            Camera<double> & c1, Camera<double> & c2)
+            ICamera & c1, ICamera & c2)
             : pose1(p1), pose2(p2), cam1(c1.clone()), cam2(c2.clone()) {}
 
     ~StereoSystem();
@@ -43,7 +43,7 @@ public:
             Eigen::Vector3d & X) const;
     Transformation<double> pose1;  // pose of the left camera in the base frame
     Transformation<double> pose2;  // pose of the right camera in the base frame
-    Camera<double> * cam1, * cam2;
+    ICamera * cam1, * cam2;
 };
 
 void computeEssentialMatrix(const vector<Eigen::Vector3d> & xVec1,

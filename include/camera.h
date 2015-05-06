@@ -4,37 +4,42 @@ Abstract camera class
 #ifndef _SPCMAP_CAMERA_H_
 #define _SPCMAP_CAMERA_H_
 
+#include <Eigen/Eigen>
 #include "geometry.h"
 
-template<typename T>
-class Camera
+using Eigen::Matrix;
+using Eigen::Vector2d;
+using Eigen::Vector3d;
+using Eigen::Matrix3d;
+
+class ICamera
 {
 public:
-    vector<T> params;
+    vector<double> params;
     int width, height;
 
     /// takes raw image points and apply undistortion model to them
-    virtual bool reconstructPoint(const Vector2<T> & src, Vector3<T> & dst) const = 0;
+    virtual bool reconstructPoint(const Vector2d & src, Vector3d & dst) const = 0;
 
     /// projects 3D points onto the original image
-    virtual bool projectPoint(const Vector3<T> & src, Vector2<T> & dst) const = 0;
+    virtual bool projectPoint(const Vector3d & src, Vector2d & dst) const = 0;
 
     //TODO implement the projection and distortion Jacobian
-    virtual bool projectionJacobian(const Vector3<T> & src,
-            Eigen::Matrix<T, 2, 3> & Jac) const = 0;
+    virtual bool projectionJacobian(const Vector3d & src,
+            Eigen::Matrix<double, 2, 3> & Jac) const = 0;
 
-    virtual void setParameters(const T * const newParams)
+    virtual void setParameters(const double * const newParams)
     {
         copy(newParams, newParams + params.size(), params.begin());
     }
     
-    Camera(int W, int H, int numParams) : width(W), height(H), params(numParams) {}
+    ICamera(int W, int H, int numParams) : width(W), height(H), params(numParams) {}
 
-    virtual ~Camera() {}
+    virtual ~ICamera() {}
     
-    virtual Camera * clone() const = 0; 
+    virtual ICamera * clone() const = 0; 
     
-    bool reconstructPointCloud(const vector<Vector2<T>> & src, vector<Vector3<T>> & dst) const
+    bool reconstructPointCloud(const vector<Vector2d> & src, vector<Vector3d> & dst) const
     {
         dst.resize(src.size());
         bool res = true;
@@ -45,7 +50,7 @@ public:
         return res;
     }
     
-    bool projectPointCloud(const vector<Vector3<T>> & src, vector<Vector2<T>> & dst) const
+    bool projectPointCloud(const vector<Vector3d> & src, vector<Vector2d> & dst) const
     {
         dst.resize(src.size());
         bool res = true;

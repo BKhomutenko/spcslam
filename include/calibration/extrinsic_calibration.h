@@ -3,7 +3,7 @@
 
 #include "generic_calibration.h"
 
-template<template<typename> class Camera>
+template<template<typename> class Projector>
 struct StereoGridProjection 
 {
     StereoGridProjection(const vector<Eigen::Vector2d> & proj,
@@ -13,7 +13,6 @@ struct StereoGridProjection
     bool operator()(const T * const* params,
                     T* residual) const 
     {
-        Camera<T> camera(params[0]);
         Transformation<T> TrefGrid(params[1]);
         Transformation<T> TrefCam(params[2]);
         Transformation<T> TcamGrid = TrefCam.inverseCompose(TrefGrid);
@@ -25,11 +24,11 @@ struct StereoGridProjection
         }
         TcamGrid.transform(transformedPoints, transformedPoints);
         
-        vector<Vector2<T>> projectedPoints;
-        camera.projectPointCloud(transformedPoints, projectedPoints);
-        for (unsigned int i = 0; i < projectedPoints.size(); i++)
+        for (unsigned int i = 0; i < transformedPoints.size(); i++)
         {
-            Vector2<T> diff = _proj[i].template cast<T>() - projectedPoints[i];
+            Vector2<T> modProj;
+            Projector<T>::compute(params[0], transformedPoints[i].data(), modProj.data());
+            Vector2<T> diff = _proj[i].template cast<T>() - modProj;
             residual[2*i] = T(diff[0]);
             residual[2*i + 1] = T(diff[1]);
         }
@@ -40,7 +39,7 @@ struct StereoGridProjection
     const vector<Vector3d> & _orig;
 };
 
-template<template<typename> class Camera>
+template<template<typename> class Projector>
 struct StereoEstimate
 {
     StereoEstimate(const vector<Vector2d> & proj, const vector<Vector3d> & orig,
@@ -52,13 +51,6 @@ struct StereoEstimate
     bool operator()(const T * const * params,
                     T* residual) const 
     {
-        vector<T> camParamsT(_camParams.size());
-        for (int i = 0; i < _camParams.size(); i++)
-        {
-            camParamsT[i] = T(_camParams[i]);
-        }
-        Camera<T> camera(camParamsT.data());
-        
         array<T, 6> extrinsic;
         for (int i = 0; i < _extrinsic.size(); i++)
         {
@@ -74,11 +66,12 @@ struct StereoEstimate
         }
         TcamGrid.transform(transformedPoints, transformedPoints);
         
-        vector<Vector2<T>> projectedPoints;
-        camera.projectPointCloud(transformedPoints, projectedPoints);
-        for (unsigned int i = 0; i < projectedPoints.size(); i++)
+        vector<T> camParamsT(_camParams.begin(), _camParams.end());
+        for (unsigned int i = 0; i < transformedPoints.size(); i++)
         {
-            Vector2<T> diff = _proj[i].template cast<T>() - projectedPoints[i];
+            Vector2<T> modProj;
+            Projector<T>::compute(camParamsT.data(), transformedPoints[i].data(), modProj.data());
+            Vector2<T> diff = _proj[i].template cast<T>() - modProj;
             residual[2*i] = T(diff[0]);
             residual[2*i + 1] = T(diff[1]);
         }
@@ -91,8 +84,8 @@ struct StereoEstimate
     const vector<Vector3d> & _orig;
 };
 
-template<template<typename> class Camera>
-class ExtrinsicCameraCalibration : GenericCameraCalibration<Camera>
+template<template<typename> class Projector>
+class ExtrinsicCameraCalibration : GenericCameraCalibration<Projector>
 {
 private:
     vector<CalibrationData> monoCalibDataVec1;
@@ -101,17 +94,17 @@ private:
     vector<CalibrationData> stereoCalibDataVec2;
     
     // methods
-    using GenericCameraCalibration<Camera>::initializeIntrinsic;
-    using GenericCameraCalibration<Camera>::extractGridProjection;
-    using GenericCameraCalibration<Camera>::constructGrid;
-    using GenericCameraCalibration<Camera>::estimateInitialGrid;
-    using GenericCameraCalibration<Camera>::initIntrinsicProblem;
-    using GenericCameraCalibration<Camera>::residualAnalysis;
+    using GenericCameraCalibration<Projector>::initializeIntrinsic;
+    using GenericCameraCalibration<Projector>::extractGridProjection;
+    using GenericCameraCalibration<Projector>::constructGrid;
+    using GenericCameraCalibration<Projector>::estimateInitialGrid;
+    using GenericCameraCalibration<Projector>::initIntrinsicProblem;
+    using GenericCameraCalibration<Projector>::residualAnalysis;
     
     // fields
-    using GenericCameraCalibration<Camera>::grid;
-    using GenericCameraCalibration<Camera>::Nx;
-    using GenericCameraCalibration<Camera>::Ny;
+    using GenericCameraCalibration<Projector>::grid;
+    using GenericCameraCalibration<Projector>::Nx;
+    using GenericCameraCalibration<Projector>::Ny;
     
 public:
 
@@ -191,11 +184,11 @@ public:
             array<double, 6> & extrinsic,
             vector<CalibrationData> & calibDataVec)
     {
-        typedef DynamicAutoDiffCostFunction<StereoGridProjection<Camera>> stereoProjectionCF;
+        typedef DynamicAutoDiffCostFunction<StereoGridProjection<Projector>> stereoProjectionCF;
         for (unsigned int i = 0; i < calibDataVec.size(); i++)
         {
-            StereoGridProjection<Camera> * stereoProjection;
-            stereoProjection = new StereoGridProjection<Camera>(
+            StereoGridProjection<Projector> * stereoProjection;
+            stereoProjection = new StereoGridProjection<Projector>(
                                         calibDataVec[i].projection,
                                         grid);
             
@@ -210,17 +203,17 @@ public:
         }
     }
     
-    void estimateInitialExtrinsic(const Camera<double> & camera, array<double, 6> & extrinsic,
+    void estimateInitialExtrinsic(const ICamera & camera, array<double, 6> & extrinsic,
             vector<CalibrationData> & calibDataVec)
     {
         Problem problem;
         for (int i = 0; i < calibDataVec.size(); i++)
         {
             
-            typedef DynamicAutoDiffCostFunction<StereoEstimate<Camera>> dynamicProjectionCF;
+            typedef DynamicAutoDiffCostFunction<StereoEstimate<Projector>> dynamicProjectionCF;
 
-            StereoEstimate<Camera> * stereoEstimate;
-            stereoEstimate = new StereoEstimate<Camera>(calibDataVec[i].projection, grid,
+            StereoEstimate<Projector> * stereoEstimate;
+            stereoEstimate = new StereoEstimate<Projector>(calibDataVec[i].projection, grid,
                                                 camera.params, *(calibDataVec[i].extrinsic));
             dynamicProjectionCF * costFunction = new dynamicProjectionCF(stereoEstimate);
             costFunction->AddParameterBlock(6);
@@ -235,7 +228,7 @@ public:
         Solve(options, &problem, &summary);
     }
     
-    bool estimateExtrinsic(Camera<double> & cam1, Camera<double> & cam2,
+    bool estimateExtrinsic(ICamera & cam1, ICamera & cam2,
             array<double, 6> & extrinsic)
     {
         estimateInitialGrid(cam1, monoCalibDataVec1);
@@ -244,7 +237,7 @@ public:
         estimateInitialExtrinsic(cam2, extrinsic, stereoCalibDataVec2);
     }
     
-    bool compute(Camera<double> & cam1, Camera<double> & cam2, Transformation<double> & transfo)
+    bool compute(ICamera & cam1, ICamera & cam2, Transformation<double> & transfo)
     {
         
         vector<double> intrinsic1 = cam1.params; 
@@ -301,7 +294,7 @@ public:
         transfo = Transformation<double>(extrinsic.data());
     } 
     
-    bool residualAnalysis(const Camera<double> & cam1, const Camera<double> & cam2,
+    bool residualAnalysis(const ICamera & cam1, const ICamera & cam2,
             const Transformation<double> & transfo)
     {
         residualAnalysis(cam1, monoCalibDataVec1);

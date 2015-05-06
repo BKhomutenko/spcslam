@@ -28,7 +28,7 @@ public:
         return true;
     }
     
-    bool compute(Camera<double> & camera)
+    bool compute(ICamera & camera)
     {
         
         cout << "### Intrinsic parameters calibration ###" << endl;
@@ -61,7 +61,7 @@ public:
         camera.setParameters(intrinsic.data());
     } 
     
-    void residualAnalysis(const Camera<double> & camera)
+    void residualAnalysis(const ICamera & camera)
     {
         cout << "### Intrinsic caibration - residual analysis ###" << endl;
         residualAnalysis(camera, monoCalibDataVec);

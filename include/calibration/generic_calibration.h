@@ -40,7 +40,7 @@ struct CalibrationData
     string fileName;
 };
 
-template<template<typename> class Camera>
+template<template<typename> class Projector>
 class GenericCameraCalibration
 {
 protected:
@@ -135,16 +135,16 @@ public:
         }
     }
 
-    void estimateInitialGrid(Camera<double> & camera,
+    void estimateInitialGrid(const ICamera & camera,
             vector<CalibrationData> & calibDataVec)
     {
         for (int i = 0; i < calibDataVec.size(); i++)
         {
             Problem problem;
-            typedef DynamicAutoDiffCostFunction<GridEstimate<Camera>> dynamicProjectionCF;
+            typedef DynamicAutoDiffCostFunction<GridEstimate<Projector>> dynamicProjectionCF;
 
-            GridEstimate<Camera> * boardEstimate;
-            boardEstimate = new GridEstimate<Camera>(calibDataVec[i].projection,
+            GridEstimate<Projector> * boardEstimate;
+            boardEstimate = new GridEstimate<Projector>(calibDataVec[i].projection,
                                         grid, camera.params);
             dynamicProjectionCF * costFunction = new dynamicProjectionCF(boardEstimate);
             costFunction->AddParameterBlock(6);
@@ -162,11 +162,11 @@ public:
     void initIntrinsicProblem(Problem & problem, vector<double> & intrinsic,
             vector<CalibrationData> & calibDataVec)
     {
-        typedef DynamicAutoDiffCostFunction<GridProjection<Camera>> projectionCF;        
+        typedef DynamicAutoDiffCostFunction<GridProjection<Projector>> projectionCF;        
         for (unsigned int i = 0; i < calibDataVec.size(); i++)
         {
-            GridProjection<Camera> * boardProjection;
-            boardProjection = new GridProjection<Camera>(calibDataVec[i].projection, grid);
+            GridProjection<Projector> * boardProjection;
+            boardProjection = new GridProjection<Projector>(calibDataVec[i].projection, grid);
             projectionCF * costFunction = new projectionCF(boardProjection);
             costFunction->AddParameterBlock(intrinsic.size());
             costFunction->AddParameterBlock(6);
@@ -176,13 +176,13 @@ public:
         }
     }
     
-    void residualAnalysis(const Camera<double> & camera,
+    void residualAnalysis(const ICamera & camera,
             const vector<CalibrationData> & calibDataVec)
     {
         residualAnalysis(camera, calibDataVec, Transformation<double>());
     }
             
-    void residualAnalysis(const Camera<double> & camera,
+    void residualAnalysis(const ICamera & camera,
             const vector<CalibrationData> & calibDataVec,
             const Transformation<double> & TrefCam)
     {

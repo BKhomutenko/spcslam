@@ -28,16 +28,16 @@ Intrinsic 2 :
 0.279888 0.170523 377.262
 376.937 659.913 489.025
 */
-    MeiCamera<double> cam1(params.data());
-    MeiCamera<double> cam2(params.data());
+    MeiCamera cam1(params.data());
+    MeiCamera cam2(params.data());
     
     Transformation<double> xi(0, 0, 0, 0, 0, 0);
 //    Transformation<double> xi(0.788018, 0.00458991, -0.0203444, -0.00243237, 0.0859827, 0.000373778);
     
-    IntrinsicCameraCalibration<MeiCamera> calibLeft;
-    IntrinsicCameraCalibration<MeiCamera> calibRight;
+    IntrinsicCameraCalibration<MeiProjector> calibLeft;
+    IntrinsicCameraCalibration<MeiProjector> calibRight;
     
-    if (calibLeft.initialize("calibInfoLeftSmall.txt"))
+    if (calibLeft.initialize("calibInfoLeft.txt"))
     {
         calibLeft.compute(cam1);
         calibLeft.residualAnalysis(cam1);
@@ -50,30 +50,30 @@ Intrinsic 2 :
 //    
 
     
-    ExtrinsicCameraCalibration<MeiCamera> calibStereo;
-    
-//    if (calibStereo.initialize("calibInfoLeftSmall.txt","calibInfoRightSmall.txt", "calibInfoStereo.txt"))
-    if (calibStereo.initialize("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt"))
-    {
-        calibStereo.compute(cam1, cam2, xi);
-        calibStereo.residualAnalysis(cam1, cam2, xi);
-    }
-    
-    cout << "Extrinsic : " << endl;
-    cout << xi << endl;
-    
-    cout << "Intrinsic 1 : " << endl;
-    for (auto & p : cam1.params)
-    {
-        cout << boost::format("%3.3f ") % p;
-    }
-    cout << endl;
-    cout << "Intrinsic 2 : " << endl;
-    for (auto & p : cam2.params)
-    {
-        cout << boost::format("%3.3f ") % p;
-    }
-    cout << endl;
+//    ExtrinsicCameraCalibration<MeiProjector> calibStereo;
+//    
+////    if (calibStereo.initialize("calibInfoLeftSmall.txt","calibInfoRightSmall.txt", "calibInfoStereo.txt"))
+//    if (calibStereo.initialize("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt"))
+//    {
+//        calibStereo.compute(cam1, cam2, xi);
+//        calibStereo.residualAnalysis(cam1, cam2, xi);
+//    }
+//    
+//    cout << "Extrinsic : " << endl;
+//    cout << xi << endl;
+//    
+//    cout << "Intrinsic 1 : " << endl;
+//    for (auto & p : cam1.params)
+//    {
+//        cout << boost::format("%3.3f ") % p;
+//    }
+//    cout << endl;
+//    cout << "Intrinsic 2 : " << endl;
+//    for (auto & p : cam2.params)
+//    {
+//        cout << boost::format("%3.3f ") % p;
+//    }
+//    cout << endl;
 //    extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
 //            par1, par2, xi);
 //    

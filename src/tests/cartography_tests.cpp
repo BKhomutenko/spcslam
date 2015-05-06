@@ -24,12 +24,12 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Vector2d;
 
-class Pinhole : public Camera<double>
+class Pinhole : public ICamera
 {
 public:
 
     Pinhole(double u0, double v0, double f)
-    : Camera(2*u0, 2*v0, 3) 
+    : ICamera(2*u0, 2*v0, 3) 
     {
         params[0] = u0;
         params[1] = v0;
@@ -154,8 +154,8 @@ void testGeometry()
 void testVision()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera<double> cam1mei(params);   
-    MeiCamera<double> cam2mei(params);
+    MeiCamera cam1mei(params);   
+    MeiCamera cam2mei(params);
     
     const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
@@ -182,7 +182,7 @@ void testVision()
 void testMei()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera<double> cam1mei(params);
+    MeiCamera cam1mei(params);
     
     for (int i = -3; i < 3; i++)
     {
@@ -211,8 +211,8 @@ void testMei()
 void testBundleAdjustment()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera<double> cam1mei(params);
-    MeiCamera<double> cam2mei(params);
+    MeiCamera cam1mei(params);
+    MeiCamera cam2mei(params);
     const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
     Transformation<double> T1, T2(tR, qR);
@@ -243,8 +243,8 @@ void testBundleAdjustment()
         cartograph.projectPointCloud(cloud1, proj1, proj2, j);
         for (unsigned int i = 0; i < maxNum; i++)
         {
-            Observation obs1(proj1[i][0], proj1[i][1], j, LEFT);
-            Observation obs2(proj2[i][0], proj2[i][1], j, RIGHT);
+            Observation obs1(proj1[i], j, LEFT);
+            Observation obs2(proj2[i], j, RIGHT);
             cartograph.LM[i].observations.push_back(obs1);
             cartograph.LM[i].observations.push_back(obs2);
         }
@@ -261,7 +261,7 @@ void testBundleAdjustment()
         cartograph.trajectory[j].trans() += Vector3d::Random()*0.2*j;
     }
     
-    cartograph.improveTheMap();
+    cartograph.improveTheMap<MeiProjector>();
     for (auto & lm : cartograph.LM)
     {
         cloud2.push_back(lm.X);
@@ -272,7 +272,8 @@ void testBundleAdjustment()
 void testOdometry()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera<double> cam1mei(params);   MeiCamera<double> cam2mei(params);
+    MeiCamera cam1mei(params);
+    MeiCamera cam2mei(params);
     
     const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
     const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?

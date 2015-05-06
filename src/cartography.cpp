@@ -11,6 +11,7 @@
 
 #include "geometry.h"
 #include "matcher.h"
+#include "mei.h"
 #include "vision.h"
 #include "cartography.h"
 
@@ -35,133 +36,6 @@ inline double sinc(const double x)
     return std::sin(x)/x;
 }
 
-ReprojectionErrorStereo::ReprojectionErrorStereo(double u, double v,
-        const Transformation<double> & camPose,
-        const Camera<double> * camera) 
-        : u(u), v(v), camera(camera) 
-{
-    camPose.toRotTransInv(Rcb, Pcb);
-}
-
-ReprojectionErrorFixed::ReprojectionErrorFixed(double u, double v, const Transformation<double> & xi,
-        const Transformation<double> & camPose, const Camera<double> * camera) 
-        : u(u), v(v), camera(camera) 
-{
-    xi.toRotTransInv(Rbo, Pbo);
-    camPose.toRotTransInv(Rcb, Pcb);
-}
-
-bool ReprojectionErrorFixed::Evaluate(double const* const* args,
-                    double* residuals,
-                    double** jac) const
-{
-    double newPoint[3];
-    double rotationVec[3];
-    const double * const landmark = args[0];
-    Vector3d X(landmark);
-
-    X = Rcb*(Rbo*X + Pbo) + Pcb;
-    Vector2d point;
-    camera->projectPoint(X, point);
-    residuals[0] = point[0] - u;
-    residuals[1] = point[1] - v;
-    
-    if (jac)
-    {
-        
-        Eigen::Matrix<double, 2, 3> J;
-        camera->projectionJacobian(X, J);
-        
-        // dp / dX
-        Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * Rcb * Rbo;
-        copy(dpdX.data(), dpdX.data() + 6, jac[0]);
-   
-    }
-    
-    return true;
-}
-
-
-//TODO unify the transformation system
-bool ReprojectionErrorStereo::Evaluate(double const* const* args,
-                    double* residuals,
-                    double** jac) const
-{
-    Vector3d rot = Vector3d(args[2]);
-    Matrix3d Rbo = rotationMatrix<double>(-rot);
-    Vector3d Pbo = -Rbo*Vector3d(args[1]);    
-    Vector3d X(args[0]);
-    
-    X = Rcb * (Rbo * X + Pbo) + Pcb;
-    Vector2d point;
-    camera->projectPoint(X, point);
-    residuals[0] = point[0] - u;
-    residuals[1] = point[1] - v;
-
-    if (jac)
-    {
-        
-        Eigen::Matrix<double, 2, 3> J;
-        camera->projectionJacobian(X, J);
-        
-        Matrix3d Rco = Rcb * Rbo;
-        
-        // dp / dX
-        Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * Rco;
-        copy(dpdX.data(), dpdX.data() + 6, jac[0]);
-        
-        // dp / dxi
-        Eigen::Matrix<double, 3, 3> LxiInv;
-
-        double theta = rot.norm();
-        if ( theta != 0)
-        {
-            Matrix3d uhat = hat<double>(rot / theta);
-            LxiInv = Matrix3d::Identity() + 
-                theta/2*sinc(theta/2)*uhat + 
-                (1 - sinc(theta))*uhat*uhat;
-        }
-        else
-        {
-            LxiInv = Matrix3d::Identity();
-        }
-
-        Eigen::Matrix<double, 2, 3, RowMajor>  dpdxi2; // = (Eigen::Matrix<double, 2, 3, RowMajor> *) jac[2];
-        dpdX *= -1;
-        dpdxi2 = J*hat(X)*Rco*LxiInv;
-        copy(dpdX.data(), dpdX.data() + 6, jac[1]);
-        copy(dpdxi2.data(), dpdxi2.data() + 6, jac[2]);
-    }
-
-    return true;
-}
-
-void MapInitializer::addFixedObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
-        const Camera<double> * cam, const Transformation<double> & camPose)
-{
-    CostFunction * costFunc = new ReprojectionErrorFixed(u, v, pose, camPose, cam);
-    problem.AddResidualBlock(costFunc, NULL, X.data());
-}
-
-void MapInitializer::addObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
-        const Camera<double> * cam, const Transformation<double> & camPose)
-{
-    CostFunction * costFunc = new ReprojectionErrorStereo(u, v, camPose, cam);
-    problem.AddResidualBlock(costFunc, NULL, X.data(), pose.transData(), pose.rotData());
-}
-
-void MapInitializer::compute()
-{
-    Solver::Options options;
-    options.linear_solver_type = ceres::DENSE_SCHUR;
-//    options.function_tolerance = 1e-3;
-//    options.gradient_tolerance = 1e-4;
-//    options.parameter_tolerance = 1e-4;
-//    options.minimizer_progress_to_stdout = true;
-    Solver::Summary summary;
-    Solve(options, &problem, &summary);
-}
-
 void StereoCartography::projectPointCloud(const vector<Vector3d> & src,
         vector<Vector2d> & dst1, vector<Vector2d> & dst2, int poseIdx) const
 {
@@ -172,44 +46,7 @@ void StereoCartography::projectPointCloud(const vector<Vector3d> & src,
     stereo.projectPointCloud(Xb, dst1, dst2);
 }
 
-void StereoCartography::improveTheMap()
-{   
-    //BUNDLE ADJUSTMENT
-    MapInitializer initializer;
-    for (auto & landmark : LM)
-    {
-        for (auto & observation : landmark.observations)
-        {
-            int xiIdx = observation.poseIdx;
-            if (xiIdx == 0)
-            {
-                if (observation.cameraId == LEFT)
-                {
-                    initializer.addFixedObservation(landmark.X, observation.u, observation.v,
-                            trajectory[xiIdx], stereo.cam1, stereo.pose1);
-                }
-                else
-                {
-                    initializer.addFixedObservation(landmark.X, observation.u, observation.v,
-                            trajectory[xiIdx], stereo.cam2, stereo.pose2);
-                }
-            }
-            else if (observation.cameraId == LEFT)
-            {
-                initializer.addObservation(landmark.X, observation.u, observation.v,
-                        trajectory[xiIdx], stereo.cam1, stereo.pose1);
-            }
-            else
-            {
-                initializer.addObservation(landmark.X, observation.u, observation.v,
-                        trajectory[xiIdx], stereo.cam2, stereo.pose2);
-            }
-        }
-    }
-    initializer.compute();
-
-}
-
+// TODO make it with ceres
 Transformation<double> StereoCartography::computeTransformation(
         const vector<Vector2d> & observationVec,
         const vector<Vector3d> & cloud, 
@@ -221,7 +58,7 @@ Transformation<double> StereoCartography::computeTransformation(
     Matrix3d Rcb;
     Vector3d Pcb;
     stereo.pose1.toRotTransInv(Rcb, Pcb);
-    Camera<double> * camera = stereo.cam1;
+    ICamera * camera = stereo.cam1;
     //TODO add a termination criterion
     for (unsigned int optimIter = 0; optimIter < 10; optimIter++)
     {

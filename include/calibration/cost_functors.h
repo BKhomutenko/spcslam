@@ -9,7 +9,7 @@ using namespace std;
 using Eigen::Vector3d;
 using Eigen::Vector2d;
 
-template<template<typename> class Camera>
+template<template<typename> class Projector>
 struct GridProjection 
 {
     GridProjection(const vector<Vector2d> & proj, const vector<Vector3d> & grid)
@@ -27,13 +27,11 @@ struct GridProjection
         }
         TbaseGrid.transform(transformedPoints, transformedPoints);
         
-        Camera<T> camera(params[0]);
-        vector<Vector2<T>> projectedPoints;
-        camera.projectPointCloud(transformedPoints, projectedPoints);
-        
-        for (unsigned int i = 0; i < projectedPoints.size(); i++)
+        for (unsigned int i = 0; i < transformedPoints.size(); i++)
         {
-            Vector2<T> diff = _proj[i].template cast<T>() - projectedPoints[i];
+            Vector2<T> modProj;
+            Projector<T>::compute(params[0], transformedPoints[i].data(), modProj.data());
+            Vector2<T> diff = _proj[i].template cast<T>() - modProj;
             residual[2*i] = T(diff[0]);
             residual[2*i + 1] = T(diff[1]);
         }
@@ -44,7 +42,7 @@ struct GridProjection
     const vector<Vector3d> & _grid;
 };
    
-template<template<typename> class Camera>
+template<template<typename> class Projector>
 struct GridEstimate
 {
     GridEstimate(const vector<Vector2d> & proj, const vector<Vector3d> & grid,
@@ -61,19 +59,13 @@ struct GridEstimate
             transformedPoints[i] = _grid[i].template cast<T>();
         }
         TbaseGrid.transform(transformedPoints, transformedPoints);
-        
-        vector<T> camParamsT(_camParams.size());
-        for (int i = 0; i < _camParams.size(); i++)
+
+        vector<T> camParamsT(_camParams.begin(), _camParams.end());
+        for (unsigned int i = 0; i < transformedPoints.size(); i++)
         {
-            camParamsT[i] = T(_camParams[i]);
-        }
-        Camera<T> camera(camParamsT.data());
-        vector<Vector2<T>> projectedPoints;
-        camera.projectPointCloud(transformedPoints, projectedPoints);
-        
-        for (unsigned int i = 0; i < projectedPoints.size(); i++)
-        {
-            Vector2<T> diff = _proj[i].template cast<T>() - projectedPoints[i];
+            Vector2<T> modProj;
+            Projector<T>::compute(camParamsT.data(), transformedPoints[i].data(), modProj.data());
+            Vector2<T> diff = _proj[i].template cast<T>() - modProj;
             residual[2*i] = T(diff[0]);
             residual[2*i + 1] = T(diff[1]);
         }
