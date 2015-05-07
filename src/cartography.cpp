@@ -2,6 +2,7 @@
 
 //STL
 #include <vector>
+
 //Eigen
 #include <Eigen/Eigen>
 
@@ -218,7 +219,7 @@ void MapInitializer::compute()
 //    options.minimizer_progress_to_stdout = true;
     Solver::Summary summary;
     Solve(options, &problem, &summary);
-    cout << summary.FullReport() << endl;
+//    cout << summary.FullReport() << endl;
 }
 
 void StereoCartography::projectPointCloud(const vector<Vector3d> & src,
@@ -285,6 +286,7 @@ void Odometry::computeTransformation()
     }
     
     Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_SCHUR;
     Solver::Summary summary;
     Solve(options, &problem, &summary);
 }
@@ -330,6 +332,7 @@ void Odometry::Ransac()
         }
         
         Solver::Options options;
+        options.linear_solver_type = ceres::DENSE_SCHUR;
         Solver::Summary summary;
         options.max_num_iterations = 5;
         Solve(options, &problem, &summary);
@@ -370,18 +373,18 @@ Transformation<double> StereoCartography::estimateOdometry(const vector<Feature>
     int numLandmarks = LM.size();
     int numActive = min(300, numLandmarks);
     vector<Feature> lmFeatureVec;
-    cout << "ca va" << endl;
+//    cout << "ca va" << endl;
     for (unsigned int i = numLandmarks - numActive; i < numLandmarks; i++)
     {
         lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[i].d));
     }
-    cout << "ca va" << endl;       
+//    cout << "ca va" << endl;       
     Matcher matcher;    
     vector<int> matchVec;    
     matcher.bruteForce(featureVec, lmFeatureVec, matchVec);
     
     Odometry odometry(trajectory.back(), stereo.pose1, stereo.cam1);
-    cout << "ca va" << endl;
+//    cout << "ca va" << endl;
     for (unsigned int i = 0; i < featureVec.size(); i++)
     {
         const int match = matchVec[i];
@@ -389,13 +392,13 @@ Transformation<double> StereoCartography::estimateOdometry(const vector<Feature>
         odometry.observationVec.push_back(featureVec[i].pt);
         odometry.cloud.push_back(LM[numLandmarks  - numActive + match].X);
     }
-    cout << "cloud : " << odometry.cloud.size() << endl;
+//    cout << "cloud : " << odometry.cloud.size() << endl;
     //RANSAC
     odometry.Ransac();
-    cout << odometry.TorigBase << endl;
+//    cout << odometry.TorigBase << endl;
     //Final transformation computation
     odometry.computeTransformation();
-    cout << odometry.TorigBase << endl;
+//    cout << odometry.TorigBase << endl;
     return odometry.TorigBase;
 }
 

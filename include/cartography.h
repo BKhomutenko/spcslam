@@ -20,14 +20,11 @@ The mapping system itself
 
 //Structure is used to perform map improvement
 
-
-
 using namespace std;
 using Eigen::Matrix;
 using Eigen::Vector2d;
 using Eigen::Vector3d;
 using Eigen::Matrix3d;
-
 
 struct Observation
 {

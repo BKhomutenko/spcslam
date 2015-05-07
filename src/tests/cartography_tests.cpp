@@ -162,7 +162,7 @@ void testVision()
     Transformation<double> T1, T2(tR, qR);
     StereoSystem stereo(T1, T2, cam1mei, cam2mei);
     
-    int maxNum = 2500;
+    int maxNum = 500;
     
     vector<Vector2d> proj1, proj2;
     vector<Vector3d> cloud1, cloud2;
@@ -218,7 +218,7 @@ void testBundleAdjustment()
     Transformation<double> T1, T2(tR, qR);
     StereoCartography cartograph(T1, T2, cam1mei, cam2mei);
     
-    int maxNum = 2500;
+    int maxNum = 500;
     
     vector<Vector2d> proj1, proj2;
     vector<Vector3d> cloud1, cloud2;
@@ -276,7 +276,7 @@ void testOdometry()
     
     Transformation<double> TbaseCam;
     
-    const int maxNum = 2500;
+    const int maxNum = 500;
     Odometry odometry(Transformation<double>(), TbaseCam, camMei);
     
     Transformation<double> Torig2(0.1, 0.2, 0.5, 0.1, 0.1, 0.1);
