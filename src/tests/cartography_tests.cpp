@@ -153,7 +153,7 @@ void testGeometry()
 
 void testVision()
 {
-    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    double params[6]{0.5, 1, 375, 375, 650, 470};
     MeiCamera cam1mei(params);   
     MeiCamera cam2mei(params);
     
@@ -181,7 +181,7 @@ void testVision()
 
 void testMei()
 {
-    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    double params[6]{0.5, 1, 375, 375, 650, 470};
     MeiCamera cam1mei(params);
     
     for (int i = -3; i < 3; i++)
@@ -210,7 +210,7 @@ void testMei()
 
 void testBundleAdjustment()
 {
-    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    double params[6]{0.5, 1, 375, 375, 650, 470};
     MeiCamera cam1mei(params);
     MeiCamera cam2mei(params);
     const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
@@ -218,7 +218,7 @@ void testBundleAdjustment()
     Transformation<double> T1, T2(tR, qR);
     StereoCartography cartograph(T1, T2, cam1mei, cam2mei);
     
-    int maxNum = 250;
+    int maxNum = 2500;
     
     vector<Vector2d> proj1, proj2;
     vector<Vector3d> cloud1, cloud2;
@@ -271,12 +271,12 @@ void testBundleAdjustment()
 
 void testOdometry()
 {
-    double params[6]{0.3, 0.2, 375, 375, 650, 470};
+    double params[6]{0.5, 1, 375, 375, 650, 470};
     MeiCamera camMei(params);
     
     Transformation<double> TbaseCam;
     
-    const int maxNum = 250;
+    const int maxNum = 2500;
     Odometry odometry(Transformation<double>(), TbaseCam, camMei);
     
     Transformation<double> Torig2(0.1, 0.2, 0.5, 0.1, 0.1, 0.1);
