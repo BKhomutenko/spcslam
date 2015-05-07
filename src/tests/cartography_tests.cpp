@@ -261,7 +261,7 @@ void testBundleAdjustment()
         cartograph.trajectory[j].trans() += Vector3d::Random()*0.2*j;
     }
     
-    cartograph.improveTheMap<MeiProjector>();
+    cartograph.improveTheMap();
     for (auto & lm : cartograph.LM)
     {
         cloud2.push_back(lm.X);

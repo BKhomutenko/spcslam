@@ -11,7 +11,6 @@
 
 #include "geometry.h"
 #include "matcher.h"
-#include "mei.h"
 #include "vision.h"
 #include "cartography.h"
 
@@ -36,6 +35,192 @@ inline double sinc(const double x)
     return std::sin(x)/x;
 }
 
+OdometryError::OdometryError(const Vector3d X, const Vector2d pt,
+        const Transformation<double> & camPose,
+        const ICamera & camera)
+        : X(X), u(pt[0]), v(pt[1]), camera(&camera) 
+{
+    camPose.toRotTransInv(Rcb, Pcb);
+}
+            
+ReprojectionErrorStereo::ReprojectionErrorStereo(double u, double v,
+        const Transformation<double> & camPose,
+        const ICamera * camera) 
+        : u(u), v(v), camera(camera) 
+{
+    camPose.toRotTransInv(Rcb, Pcb);
+}
+
+ReprojectionErrorFixed::ReprojectionErrorFixed(double u, double v, const Transformation<double> & xi,
+        const Transformation<double> & camPose, const ICamera * camera) 
+        : u(u), v(v), camera(camera) 
+{
+    xi.toRotTransInv(Rbo, Pbo);
+    camPose.toRotTransInv(Rcb, Pcb);
+}
+
+bool ReprojectionErrorFixed::Evaluate(double const* const* args,
+                    double* residuals,
+                    double** jac) const
+{
+    double newPoint[3];
+    double rotationVec[3];
+    const double * const landmark = args[0];
+    Vector3d X(landmark);
+
+    X = Rcb*(Rbo*X + Pbo) + Pcb;
+    Vector2d point;
+    camera->projectPoint(X, point);
+    residuals[0] = point[0] - u;
+    residuals[1] = point[1] - v;
+    
+    if (jac)
+    {
+        
+        Eigen::Matrix<double, 2, 3> J;
+        camera->projectionJacobian(X, J);
+        
+        // dp / dX
+        Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * Rcb * Rbo;
+        copy(dpdX.data(), dpdX.data() + 6, jac[0]);
+   
+    }
+    
+    return true;
+}
+
+
+//TODO unify the transformation system
+bool OdometryError::Evaluate(double const* const* args,
+                    double* residuals,
+                    double** jac) const
+{
+    Vector3d rot(args[1]);
+    Matrix3d Rbo = rotationMatrix<double>(-rot);
+    Vector3d Pob(args[0]);    
+    
+    Vector3d Xtr = Rcb * (Rbo * (X - Pob)) + Pcb;
+    Vector2d point;
+    camera->projectPoint(Xtr, point);
+    residuals[0] = point[0] - u;
+    residuals[1] = point[1] - v;
+
+    if (jac)
+    {
+        
+        Eigen::Matrix<double, 2, 3> J;
+        camera->projectionJacobian(Xtr, J);
+        
+        Matrix3d Rco = Rcb * Rbo;
+        
+        
+        // dp / dxi
+        Eigen::Matrix<double, 3, 3> LxiInv;
+
+        double theta = rot.norm();
+        if ( theta != 0)
+        {
+            Matrix3d uhat = hat<double>(rot / theta);
+            LxiInv = Matrix3d::Identity() + 
+                theta/2*sinc(theta/2)*uhat + 
+                (1 - sinc(theta))*uhat*uhat;
+        }
+        else
+        {
+            LxiInv = Matrix3d::Identity();
+        }
+
+        Eigen::Matrix<double, 2, 3, RowMajor> dpdxi1 = -J * Rco;
+        Eigen::Matrix<double, 2, 3, RowMajor>  dpdxi2; // = (Eigen::Matrix<double, 2, 3, RowMajor> *) jac[2];
+        dpdxi2 = J*hat(Xtr)*Rco*LxiInv;
+        copy(dpdxi1.data(), dpdxi1.data() + 6, jac[0]);
+        copy(dpdxi2.data(), dpdxi2.data() + 6, jac[1]);
+    }
+
+    return true;
+}
+
+
+bool ReprojectionErrorStereo::Evaluate(double const* const* args,
+                    double* residuals,
+                    double** jac) const
+{
+    Vector3d rot(args[2]);
+    Matrix3d Rbo = rotationMatrix<double>(-rot);
+    Vector3d Pob(args[1]);    
+    Vector3d X(args[0]);
+    
+    X = Rcb * (Rbo * (X - Pob)) + Pcb;
+    Vector2d point;
+    camera->projectPoint(X, point);
+    residuals[0] = point[0] - u;
+    residuals[1] = point[1] - v;
+
+    if (jac)
+    {
+        
+        Eigen::Matrix<double, 2, 3> J;
+        camera->projectionJacobian(X, J);
+        
+        Matrix3d Rco = Rcb * Rbo;
+        
+        // dp / dX
+        Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * Rco;
+        copy(dpdX.data(), dpdX.data() + 6, jac[0]);
+        
+        // dp / dxi
+        Eigen::Matrix<double, 3, 3> LxiInv;
+
+        double theta = rot.norm();
+        if ( theta != 0)
+        {
+            Matrix3d uhat = hat<double>(rot / theta);
+            LxiInv = Matrix3d::Identity() + 
+                theta/2*sinc(theta/2)*uhat + 
+                (1 - sinc(theta))*uhat*uhat;
+        }
+        else
+        {
+            LxiInv = Matrix3d::Identity();
+        }
+
+        Eigen::Matrix<double, 2, 3, RowMajor>  dpdxi2; // = (Eigen::Matrix<double, 2, 3, RowMajor> *) jac[2];
+        dpdX *= -1;
+        dpdxi2 = J*hat(X)*Rco*LxiInv;
+        copy(dpdX.data(), dpdX.data() + 6, jac[1]);
+        copy(dpdxi2.data(), dpdxi2.data() + 6, jac[2]);
+    }
+
+    return true;
+}
+
+void MapInitializer::addFixedObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
+        const ICamera * cam, const Transformation<double> & camPose)
+{
+    CostFunction * costFunc = new ReprojectionErrorFixed(u, v, pose, camPose, cam);
+    problem.AddResidualBlock(costFunc, NULL, X.data());
+}
+
+void MapInitializer::addObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
+        const ICamera * cam, const Transformation<double> & camPose)
+{
+    CostFunction * costFunc = new ReprojectionErrorStereo(u, v, camPose, cam);
+    problem.AddResidualBlock(costFunc, NULL, X.data(), pose.transData(), pose.rotData());
+}
+
+void MapInitializer::compute()
+{
+    Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_SCHUR;
+//    options.function_tolerance = 1e-3;
+//    options.gradient_tolerance = 1e-4;
+//    options.parameter_tolerance = 1e-4;
+//    options.minimizer_progress_to_stdout = true;
+    Solver::Summary summary;
+    Solve(options, &problem, &summary);
+    cout << summary.FullReport() << endl;
+}
+
 void StereoCartography::projectPointCloud(const vector<Vector3d> & src,
         vector<Vector2d> & dst1, vector<Vector2d> & dst2, int poseIdx) const
 {
@@ -44,6 +229,138 @@ void StereoCartography::projectPointCloud(const vector<Vector3d> & src,
     vector<Vector3d> Xb(src.size());
     trajectory[poseIdx].inverseTransform(src, Xb);
     stereo.projectPointCloud(Xb, dst1, dst2);
+}
+
+void StereoCartography::improveTheMap()
+{   
+    //BUNDLE ADJUSTMENT
+    MapInitializer initializer;
+    for (auto & landmark : LM)
+    {
+        for (auto & observation : landmark.observations)
+        {
+            int xiIdx = observation.poseIdx;
+            if (xiIdx == 0)
+            {
+                if (observation.cameraId == LEFT)
+                {
+                    initializer.addFixedObservation(landmark.X, observation.u, observation.v,
+                            trajectory[xiIdx], stereo.cam1, stereo.pose1);
+                }
+                else
+                {
+                    initializer.addFixedObservation(landmark.X, observation.u, observation.v,
+                            trajectory[xiIdx], stereo.cam2, stereo.pose2);
+                }
+            }
+            else if (observation.cameraId == LEFT)
+            {
+                initializer.addObservation(landmark.X, observation.u, observation.v,
+                        trajectory[xiIdx], stereo.cam1, stereo.pose1);
+            }
+            else
+            {
+                initializer.addObservation(landmark.X, observation.u, observation.v,
+                        trajectory[xiIdx], stereo.cam2, stereo.pose2);
+            }
+        }
+    }
+    initializer.compute();
+
+}
+
+void Odometry::computeTransformation()
+{
+    assert(observationVec.size() == cloud.size());
+    assert(observationVec.size() == inlierMask.size());
+    Problem problem;
+    for (unsigned int i = 0; i < cloud.size(); i++)
+    {
+        
+        if (not inlierMask[i]) continue;
+        CostFunction * costFunc = new OdometryError(cloud[i],
+                                        observationVec[i], TbaseCam, camera);
+        problem.AddResidualBlock(costFunc, NULL,
+                    TorigBase.transData(), TorigBase.rotData());
+    }
+    
+    Solver::Options options;
+    Solver::Summary summary;
+    Solve(options, &problem, &summary);
+}
+        
+void Odometry::Ransac()
+{
+    assert(observationVec.size() == cloud.size());
+    int numPoints = observationVec.size();
+    
+    inlierMask.resize(numPoints);
+    
+    const int numIterMax = 25;
+    const Transformation<double> initialPose = TorigBase;
+    int bestInliers = 0;
+    //TODO add a termination criterion
+    for (unsigned int iteration = 0; iteration < numIterMax; iteration++)
+    {
+        Transformation<double> pose = initialPose;
+        int maxIdx = observationVec.size();
+        //choose three points at random
+	    int idx1m = rand() % maxIdx;
+	    int idx2m, idx3m;
+	    do 
+	    {
+		    idx2m = rand() % maxIdx;
+	    } while (idx2m == idx1m);
+	
+	    do 
+	    {
+		    idx3m = rand() % maxIdx;
+	    } while (idx3m == idx1m or idx3m == idx2m);
+        
+        
+        //solve an optimization problem 
+        
+        Problem problem;
+        for (auto i : {idx1m, idx2m, idx3m})
+        {
+            CostFunction * costFunc = new OdometryError(cloud[i],
+                                        observationVec[i], TbaseCam, camera);
+            problem.AddResidualBlock(costFunc, NULL,
+                        pose.transData(), pose.rotData());
+        }
+        
+        Solver::Options options;
+        Solver::Summary summary;
+        options.max_num_iterations = 5;
+        Solve(options, &problem, &summary);
+            
+        //count inliers
+        vector<Vector3d> XcamVec(numPoints);
+        Transformation<double> TorigCam = pose.compose(TbaseCam);
+        TorigCam.inverseTransform(cloud, XcamVec);
+        vector<Vector2d> projVec(numPoints);
+        camera.projectPointCloud(XcamVec, projVec);
+        vector<bool> currentInlierMask(numPoints, false);
+        
+        int countInliers = 0;
+        for (unsigned int i = 0; i < numPoints; i++)
+        {   
+            Vector2d err = observationVec[i] - projVec[i];
+            if (err.norm() < 2)
+            {
+                currentInlierMask[i] = true;
+                countInliers++;
+            }
+        }
+        //keep the best hypothesis
+        if (countInliers > bestInliers)
+        {
+            //TODO copy in a bettegit lor way
+            inlierMask = currentInlierMask;
+            bestInliers = countInliers;
+            TorigBase = pose;
+        }        
+    }
 }
 
 Transformation<double> StereoCartography::estimateOdometry(const vector<Feature> & featureVec)
