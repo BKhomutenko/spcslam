@@ -75,11 +75,11 @@ struct OdometryError
                     const T * rotParams,
                     T* residual) const 
     {
-        Vector3<T> rot = Vector3<T>(rotParams);
-        Matrix3<T> Rbo = rotationMatrix<T>(-rot);
-        Vector3<T> Pob = Vector3<T>(transParams);    
-        Vector3<T> XT = X.template cast<T>();
-        XT = Rcb.template cast<T>() * (Rbo * (XT - Pob)) + Pcb.template cast<T>();
+        Vector3<T> rot(rotParams);
+        Quaternion<T> Qbo = Quaternion<T>(rot).inv();
+        Vector3<T> Pob(transParams);    
+        Vector3<T> XT = X.template cast<T>() - Pob;
+        XT = Rcb.template cast<T>() * (Qbo.rotate(XT)) + Pcb.template cast<T>();
         Vector2<T> point;
         vector<T> paramsT(params.begin(), params.end());
         Projector<T>::compute(paramsT.data(), XT.data(), point.data());
@@ -517,6 +517,7 @@ public:
     //    options.minimizer_progress_to_stdout = true;
         Solver::Summary summary;
         Solve(options, &problem, &summary);
+        cout << summary.FullReport() << endl;
     }
     
 private:
