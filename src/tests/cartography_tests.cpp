@@ -162,7 +162,7 @@ void testVision()
     Transformation<double> T1, T2(tR, qR);
     StereoSystem stereo(T1, T2, cam1mei, cam2mei);
     
-    int maxNum = 15;
+    int maxNum = 2500;
     
     vector<Vector2d> proj1, proj2;
     vector<Vector3d> cloud1, cloud2;
@@ -272,32 +272,24 @@ void testBundleAdjustment()
 void testOdometry()
 {
     double params[6]{0.3, 0.2, 375, 375, 650, 470};
-    MeiCamera cam1mei(params);
-    MeiCamera cam2mei(params);
+    MeiCamera camMei(params);
     
-    const Quaternion<double> qR(-0.0166921, 0.0961855, -0.0121137, 0.99515);
-    const Vector3d tR(0.78, 0, 0);  // (x, y, z) OL-OR expressed in CR reference frame?
-    Transformation<double> T1, T2(tR, qR);
-    StereoCartography cartograph(T1, T2, cam1mei, cam2mei);
+    Transformation<double> TbaseCam;
     
-    int maxNum = 250;
+    const int maxNum = 250;
+    Odometry odometry(Transformation<double>(), TbaseCam, camMei);
     
-    Odometry odometry(Transformation<double>(), cartograph.stereo);
-    vector<Vector2d> proj1, proj2;
-    
-    cartograph.LM.resize(maxNum);
-    
-    cartograph.trajectory.push_back(Transformation<double>(0, 0, 0, 0, 0, 0));
-    cartograph.trajectory.push_back(Transformation<double>(0.1, 0.2, 0.5, 0.1, 0.1, 0.1));
+    Transformation<double> Torig2(0.1, 0.2, 0.5, 0.1, 0.1, 0.1);
        
-     
     for (unsigned int i = 0; i < maxNum; i++)
     {
         odometry.cloud.push_back(Vector3d(10*sin(i),
                         10*std::cos(i*1.7),
                         15.2+5*std::sin(i/3.14)));
     }
-    cartograph.projectPointCloud(odometry.cloud, odometry.observationVec, proj2, 1); 
+    vector<Vector3d> cloud2;
+    Torig2.inverseTransform(odometry.cloud, cloud2);
+    camMei.projectPointCloud(cloud2, odometry.observationVec); 
     
     for (unsigned int i = 0; i < maxNum; i += 3)
     {
@@ -307,34 +299,51 @@ void testOdometry()
     }
     
     
-    
     odometry.Ransac();
     odometry.computeTransformation();
-    assertEqual(odometry.TorigBase.rot(), cartograph.trajectory[1].rot());
-    assertEqual(odometry.TorigBase.trans(), cartograph.trajectory[1].trans());
+    assertEqual(odometry.TorigBase.rot(), Torig2.rot());
+    assertEqual(odometry.TorigBase.trans(), Torig2.trans());
 }
 
 int main(int argc, char** argv)
 {
+    clock_t begin, end;
+    double dt;
+    
     cout << "### Geometry tests ### " << flush;
+    begin = clock();
     testGeometry();
-    cout << "OK" << endl;
+    end = clock();
+    dt = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "OK. elapsed " << dt << endl;
     
     cout << "### Mei tests ### " << flush;
+    begin = clock();
     testMei();
-    cout << "OK" << endl;
+    end = clock();
+    dt = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "OK. elapsed " << dt << endl;
     
     cout << "### Stereo tests ### " << flush;
+    begin = clock();
     testVision();
-    cout << "OK" << endl;
+    end = clock();
+    dt = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "OK. elapsed " << dt << endl;
     
     cout << "### Odometry tests ### " << flush;
+    begin = clock();
     testOdometry();
-    cout << "OK" << endl;
+    end = clock();
+    dt = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "OK. elapsed " << dt << endl;
     
     cout << "### Bundle Adjustment tests ### " << flush;
+    begin = clock();
     testBundleAdjustment();
-    cout << "OK" << endl;
+    end = clock();
+    dt = double(end - begin) / CLOCKS_PER_SEC;
+    cout << "OK. elapsed " << dt << endl;
     return 0;
 }
 

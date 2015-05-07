@@ -16,6 +16,7 @@ The mapping system itself
 
 #include "extractor.h"
 #include "geometry.h"
+#include "mei.h"
 #include "vision.h"
 
 using ceres::AutoDiffCostFunction;
@@ -62,11 +63,10 @@ struct LandMark
 template<template<typename> class Projector>
 struct OdometryError 
 {
-    OdometryError(const Vector2d pt,
-        const Vector3d X,
+    OdometryError(const Vector3d X, const Vector2d pt,
         const Transformation<double> & camPose,
         const vector<double> & params) 
-        : u(pt[0]), v(pt[1]), params(params), X(X)
+        : X(X), u(pt[0]), v(pt[1]), params(params)
     { camPose.toRotTransInv(Rcb, Pcb); }
 
     // The args are double[3] trans, double[3] rot
@@ -79,10 +79,10 @@ struct OdometryError
         Matrix3<T> Rbo = rotationMatrix<T>(-rot);
         Vector3<T> Pob = Vector3<T>(transParams);    
         Vector3<T> XT = X.template cast<T>();
-        X = Rcb.template cast<T>() * (Rbo * (XT - Pob)) + Pcb.template cast<T>();
+        XT = Rcb.template cast<T>() * (Rbo * (XT - Pob)) + Pcb.template cast<T>();
         Vector2<T> point;
         vector<T> paramsT(params.begin(), params.end());
-        Projector<T>::compute(paramsT.data(), X.data(), point.data());
+        Projector<T>::compute(paramsT.data(), XT.data(), point.data());
         residual[0] = point[0] - T(u);
         residual[1] = point[1] - T(v);
         return true;    
@@ -227,19 +227,46 @@ public:
     vector<Vector3d> cloud;
     vector<bool> inlierMask;
     Transformation<double> TorigBase;
-    const StereoSystem & stereo;
-    Odometry(const Transformation<double> TorigBase, const StereoSystem & stereo) 
-            : TorigBase(TorigBase), stereo(stereo) {}
+    const Transformation<double> TbaseCam;
+    const ICamera & camera;
     
+    Odometry(const Transformation<double> TorigBase,
+            const Transformation<double> TbaseCam,
+            const ICamera & camera) 
+            : TorigBase(TorigBase), TbaseCam(TbaseCam), camera(camera) {}
+    
+    Odometry(const Transformation<double> TorigBase,
+            const Transformation<double> TbaseCam,
+            const ICamera * camera) 
+            : TorigBase(TorigBase), TbaseCam(TbaseCam), camera(*camera) {}
+            
     void computeTransformation()
     {
         assert(observationVec.size() == cloud.size());
         assert(observationVec.size() == inlierMask.size());
-        Matrix3d Rcb;
-        Vector3d Pcb;
-        stereo.pose1.toRotTransInv(Rcb, Pcb);
-        ICamera * camera = stereo.cam1;
-        //TODO add a termination criterion
+        Problem problem;
+    
+        using projectionCF = AutoDiffCostFunction<OdometryError<MeiProjector>, 2, 3, 3>; 
+        for (unsigned int i = 0; i < cloud.size(); i++)
+        {
+            if (not inlierMask[i]) continue;
+            //create a functional object
+            OdometryError<MeiProjector> * errorFunct;
+            errorFunct = new OdometryError<MeiProjector>(cloud[i], observationVec[i],
+                    TbaseCam, camera.params);
+                    
+            // initialize a costfunction and add it to the problem
+            CostFunction * costFunc = new projectionCF(errorFunct);
+            problem.AddResidualBlock(costFunc, NULL,
+                    TorigBase.transData(), TorigBase.rotData());
+        }
+        
+        Solver::Options options;
+        
+//        options.linear_solver_type = ceres::DENSE_SCHUR;
+        Solver::Summary summary;
+        Solve(options, &problem, &summary);
+        /*
         for (unsigned int optimIter = 0; optimIter < 10; optimIter++)
         {
             Matrix3d Rbo, LxiInv;
@@ -287,7 +314,7 @@ public:
             auto dxi = JTJ.inverse()*JTerr;
             TorigBase.trans() += dxi.head<3>();
             TorigBase.rot() += dxi.tail<3>();
-        }
+        }*/
     }
     
             
@@ -298,18 +325,17 @@ public:
         
         inlierMask.resize(numPoints);
         
-        int numIterMax = 25;
+        const int numIterMax = 25;
         const Transformation<double> initialPose = TorigBase;
-        Transformation<double> pose;
         int bestInliers = 0;
         //TODO add a termination criterion
         for (unsigned int iteration = 0; iteration < numIterMax; iteration++)
         {
+            Transformation<double> pose = initialPose;
             int maxIdx = observationVec.size();
             //choose three points at random
 		    int idx1m = rand() % maxIdx;
-		    int idx2m = 0;
-		    int idx3m = 0;
+		    int idx2m, idx3m;
 		    do 
 		    {
 			    idx2m = rand() % maxIdx;
@@ -324,9 +350,32 @@ public:
     //        cout << cloud[idx2m].transpose() << " ###### " << observationVec[idx2m].transpose() << endl;
     //        cout << cloud[idx3m].transpose() << " ###### " << observationVec[idx3m].transpose() << endl;
     //        cout << endl;
-            pose = initialPose;        
+                    
+            
+            //solve an optimization problem 
+            
+            Problem problem;
+            using projectionCF = AutoDiffCostFunction<OdometryError<MeiProjector>, 2, 3, 3>; 
+            for (auto i : {idx1m, idx2m, idx3m})
+            {
+                //create a functional object
+                OdometryError<MeiProjector> * errorFunct;
+                errorFunct = new OdometryError<MeiProjector>(cloud[i], observationVec[i],
+                        TbaseCam, camera.params);
+                        
+                // initialize a costfunction and add it to the problem
+                CostFunction * costFunc = new projectionCF(errorFunct);
+                problem.AddResidualBlock(costFunc, NULL,
+                        pose.transData(), pose.rotData());
+            }
+            
+            Solver::Options options;
+//            options.linear_solver_type = ceres::DENSE_SCHUR;
+            Solver::Summary summary;
+            options.max_num_iterations = 5;
+            Solve(options, &problem, &summary);
             //compute xi using these points
-            for (unsigned int i = 0; i < 10; i++)
+            /*for (unsigned int i = 0; i < 10; i++)
             {
                 double theta = pose.rot().norm();
                 Matrix3d uhat = hat(pose.rot());
@@ -378,20 +427,27 @@ public:
                     cout << (observationVec[idx3m] - Err3).transpose() << endl;
                     cout << " ##### " << endl;
                 }
-            }
+            }*/
             
             //count inliers
-            vector<Vector3d> XbaseVec(numPoints);
-            pose.inverseTransform(cloud, XbaseVec);
-            vector<Vector2d> p1Vec(numPoints), p2Vec(numPoints);
-            stereo.projectPointCloud(XbaseVec, p1Vec, p2Vec);
+            vector<Vector3d> XcamVec(numPoints);
+            Transformation<double> TorigCam = pose.compose(TbaseCam);
+            TorigCam.inverseTransform(cloud, XcamVec);
+            vector<Vector2d> projVec(numPoints);
+            camera.projectPointCloud(XcamVec, projVec);
+//            for (int i = 0; i < numPoints; i++)
+//            {
+//                cout << XcamVec[i].transpose() << " ";
+////                MeiProjector<double>::compute(params.data(), XcamVec[i].data(), projVec[i].data());
+//                cout << projVec[i].transpose() << endl;
+//            }
             vector<bool> currentInlierMask(numPoints, false);
             
             int countInliers = 0;
             for (unsigned int i = 0; i < numPoints; i++)
             {   
-    //            cout << observationVec[i] << " " <<  p1Vec[i]<< endl;
-                Vector2d err = observationVec[i] - p1Vec[i];
+//                cout << observationVec[i].transpose() << " " <<  projVec[i].transpose() << endl;
+                Vector2d err = observationVec[i] - projVec[i];
                 if (err.norm() < 2)
                 {
                     currentInlierMask[i] = true;
@@ -401,7 +457,7 @@ public:
             //keep the best hypothesis
             if (countInliers > bestInliers)
             {
-                //cout << "improvement "  << countInliers << " " <<  bestInliers << endl;
+//                cout << "improvement "  << countInliers << " " <<  bestInliers << endl;
                 //TODO copy in a bettegit lor way
                 inlierMask = currentInlierMask;
                 bestInliers = countInliers;
@@ -454,7 +510,7 @@ public:
     void compute()
     {
         Solver::Options options;
-        options.linear_solver_type = ceres::DENSE_SCHUR;
+//        options.linear_solver_type = ceres::DENSE_SCHUR;
     //    options.function_tolerance = 1e-3;
     //    options.gradient_tolerance = 1e-4;
     //    options.parameter_tolerance = 1e-4;

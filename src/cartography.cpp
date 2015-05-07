@@ -63,7 +63,7 @@ Transformation<double> StereoCartography::estimateOdometry(const vector<Feature>
     vector<int> matchVec;    
     matcher.bruteForce(featureVec, lmFeatureVec, matchVec);
     
-    Odometry odometry(trajectory.back(), stereo);
+    Odometry odometry(trajectory.back(), stereo.pose1, stereo.cam1);
     cout << "ca va" << endl;
     for (unsigned int i = 0; i < featureVec.size(); i++)
     {
