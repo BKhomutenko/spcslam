@@ -41,23 +41,24 @@ OdometryError::OdometryError(const Vector3d X, const Vector2d pt,
         const ICamera & camera)
         : X(X), u(pt[0]), v(pt[1]), camera(&camera) 
 {
-    camPose.toRotTransInv(Rcb, Pcb);
+    camPose.toRotTransInv(RcamBase, PcamBase);
 }
             
 ReprojectionErrorStereo::ReprojectionErrorStereo(const Vector2d pt,
-        const Transformation<double> & camPose,
+        const Transformation<double> & TbaseCam,
         const ICamera * camera) 
         : u(pt[0]), v(pt[1]), camera(camera) 
 {
-    camPose.toRotTransInv(Rcb, Pcb);
+    TbaseCam.toRotTransInv(RcamBase, PcamBase);
 }
 
-ReprojectionErrorFixed::ReprojectionErrorFixed(const Vector2d pt, const Transformation<double> & xi,
-        const Transformation<double> & camPose, const ICamera * camera) 
+ReprojectionErrorFixed::ReprojectionErrorFixed(const Vector2d pt,
+        const Transformation<double> & TorigBase,
+        const Transformation<double> & TbaseCam, const ICamera * camera) 
         : u(pt[0]), v(pt[1]), camera(camera) 
 {
-    xi.toRotTransInv(Rbo, Pbo);
-    camPose.toRotTransInv(Rcb, Pcb);
+    TorigBase.toRotTransInv(RbaseOrig, PbaseOrig);
+    TbaseCam.toRotTransInv(RcamBase, PcamBase);
 }
 
 bool ReprojectionErrorFixed::Evaluate(double const* const* args,
@@ -69,7 +70,7 @@ bool ReprojectionErrorFixed::Evaluate(double const* const* args,
     const double * const landmark = args[0];
     Vector3d X(landmark);
 
-    X = Rcb*(Rbo*X + Pbo) + Pcb;
+    X = RcamBase*(RbaseOrig*X + PbaseOrig) + PcamBase;
     Vector2d point;
     camera->projectPoint(X, point);
     residuals[0] = point[0] - u;
@@ -82,7 +83,7 @@ bool ReprojectionErrorFixed::Evaluate(double const* const* args,
         camera->projectionJacobian(X, J);
         
         // dp / dX
-        Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * Rcb * Rbo;
+        Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * RcamBase * RbaseOrig;
         copy(dpdX.data(), dpdX.data() + 6, jac[0]);
    
     }
@@ -96,11 +97,11 @@ bool OdometryError::Evaluate(double const* const* args,
                     double* residuals,
                     double** jac) const
 {
-    Vector3d rot(args[1]);
-    Matrix3d Rbo = rotationMatrix<double>(-rot);
-    Vector3d Pob(args[0]);    
+    Vector3d rotOrigBase(args[1]);
+    Matrix3d RbaseOrig = rotationMatrix<double>(-rotOrigBase);
+    Vector3d PorigBase(args[0]);    
     
-    Vector3d Xtr = Rcb * (Rbo * (X - Pob)) + Pcb;
+    Vector3d Xtr = RcamBase * (RbaseOrig * (X - PorigBase)) + PcamBase;
     Vector2d point;
     camera->projectPoint(Xtr, point);
     residuals[0] = point[0] - u;
@@ -112,16 +113,16 @@ bool OdometryError::Evaluate(double const* const* args,
         Eigen::Matrix<double, 2, 3> J;
         camera->projectionJacobian(Xtr, J);
         
-        Matrix3d Rco = Rcb * Rbo;
+        Matrix3d Rco = RcamBase * RbaseOrig;
         
         
         // dp / dxi
         Eigen::Matrix<double, 3, 3> LxiInv;
 
-        double theta = rot.norm();
+        double theta = rotOrigBase.norm();
         if ( theta != 0)
         {
-            Matrix3d uhat = hat<double>(rot / theta);
+            Matrix3d uhat = hat<double>(rotOrigBase / theta);
             LxiInv = Matrix3d::Identity() + 
                 theta/2*sinc(theta/2)*uhat + 
                 (1 - sinc(theta))*uhat*uhat;
@@ -147,11 +148,11 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
                     double** jac) const
 {
     Vector3d rot(args[2]);
-    Matrix3d Rbo = rotationMatrix<double>(-rot);
+    Matrix3d RbaseOrig = rotationMatrix<double>(-rot);
     Vector3d Pob(args[1]);    
     Vector3d X(args[0]);
     
-    X = Rcb * (Rbo * (X - Pob)) + Pcb;
+    X = RcamBase * (RbaseOrig * (X - Pob)) + PcamBase;
     Vector2d point;
     camera->projectPoint(X, point);
     residuals[0] = point[0] - u;
@@ -163,7 +164,7 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
         Eigen::Matrix<double, 2, 3> J;
         camera->projectionJacobian(X, J);
         
-        Matrix3d Rco = Rcb * Rbo;
+        Matrix3d Rco = RcamBase * RbaseOrig;
         
         // dp / dX
         Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * Rco;

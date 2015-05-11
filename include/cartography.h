@@ -57,7 +57,7 @@ struct LandMark
 
 struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
 {
-    ReprojectionErrorStereo(const Vector2d pt, const Transformation<double> & xi,
+    ReprojectionErrorStereo(const Vector2d pt, const Transformation<double> & TbaseCam,
             const ICamera * camera);
     
     // args : double lm[3], double pose[6]
@@ -68,8 +68,8 @@ struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
     //observed coordinates
     const double u, v;
     //Transformation information
-    Vector3d Pcb;
-    Matrix3d Rcb;
+    Vector3d PcamBase;
+    Matrix3d RcamBase;
     
     //provides projection model
     const ICamera * camera;
@@ -89,8 +89,8 @@ struct ReprojectionErrorFixed : public ceres::SizedCostFunction<2, 3>
     //observed coordinates
     const double u, v;
     //Transformation information
-    Vector3d Pcb, Pbo;
-    Matrix3d Rcb, Rbo;
+    Vector3d PcamBase, PbaseOrig;
+    Matrix3d RcamBase, RbaseOrig;
     //provides projection model
     const ICamera * camera;
     
@@ -112,8 +112,8 @@ struct OdometryError : public ceres::SizedCostFunction<2, 3, 3>
     //observed coordinates
     const double u, v;
     //Transformation information
-    Vector3d Pcb;
-    Matrix3d Rcb;
+    Vector3d PcamBase;
+    Matrix3d RcamBase;
     
     //provides projection model
     const ICamera * camera;
@@ -127,10 +127,10 @@ class MapInitializer
 public:
    
     void addObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
-        const ICamera * cam, const Transformation<double> & camPose);
+            const ICamera * cam, const Transformation<double> & camPose);
     
     void addFixedObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
-        const ICamera * cam, const Transformation<double> & camPose);       
+            const ICamera * cam, const Transformation<double> & camPose);       
 //    void addObservationRight(Vector3d & X, double u, double v, Transformation & pose,
 //            const Camera & cam, Transformation & rightCamTransformation);
             
