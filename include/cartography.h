@@ -99,7 +99,7 @@ struct ReprojectionErrorFixed : public ceres::SizedCostFunction<2, 3>
 struct OdometryError : public ceres::SizedCostFunction<2, 3, 3>
 {
     OdometryError(const Vector3d X, const Vector2d pt,
-        const Transformation<double> & camPose,
+        const Transformation<double> & TbaseCam,
         const ICamera & camera);
     
     // args : double lm[3], double pose[6]
@@ -127,10 +127,10 @@ class MapInitializer
 public:
    
     void addObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
-            const ICamera * cam, const Transformation<double> & camPose);
+            const ICamera * cam, const Transformation<double> & TbaseCam);
     
     void addFixedObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
-            const ICamera * cam, const Transformation<double> & camPose);       
+            const ICamera * cam, const Transformation<double> & TbaseCam);       
 //    void addObservationRight(Vector3d & X, double u, double v, Transformation & pose,
 //            const Camera & cam, Transformation & rightCamTransformation);
             

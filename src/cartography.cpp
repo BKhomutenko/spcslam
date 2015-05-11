@@ -37,11 +37,11 @@ inline double sinc(const double x)
 }
 
 OdometryError::OdometryError(const Vector3d X, const Vector2d pt,
-        const Transformation<double> & camPose,
+        const Transformation<double> & TbaseCam,
         const ICamera & camera)
         : X(X), u(pt[0]), v(pt[1]), camera(&camera) 
 {
-    camPose.toRotTransInv(RcamBase, PcamBase);
+    TbaseCam.toRotTransInv(RcamBase, PcamBase);
 }
             
 ReprojectionErrorStereo::ReprojectionErrorStereo(const Vector2d pt,
@@ -197,16 +197,16 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
 }
 
 void MapInitializer::addFixedObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
-        const ICamera * cam, const Transformation<double> & camPose)
+        const ICamera * cam, const Transformation<double> & TbaseCam)
 {
-    CostFunction * costFunc = new ReprojectionErrorFixed(pt, pose, camPose, cam);
+    CostFunction * costFunc = new ReprojectionErrorFixed(pt, pose, TbaseCam, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data());
 }
 
 void MapInitializer::addObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
-        const ICamera * cam, const Transformation<double> & camPose)
+        const ICamera * cam, const Transformation<double> & TbaseCam)
 {
-    CostFunction * costFunc = new ReprojectionErrorStereo(pt, camPose, cam);
+    CostFunction * costFunc = new ReprojectionErrorStereo(pt, TbaseCam, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data(), pose.transData(), pose.rotData());
 }
 
