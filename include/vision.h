@@ -32,7 +32,7 @@ public:
     //TODO make smart constructor with calibration data passed
     StereoSystem(Transformation<double> & p1, Transformation<double> & p2,
             ICamera & c1, ICamera & c2)
-            : pose1(p1), pose2(p2), cam1(c1.clone()), cam2(c2.clone()) {}
+            : TbaseCam1(p1), TbaseCam2(p2), cam1(c1.clone()), cam2(c2.clone()) {}
 
     ~StereoSystem();
 
@@ -41,8 +41,8 @@ public:
     void reconstruct2(const Eigen::Vector2d & p1,
             const Eigen::Vector2d & p2,
             Eigen::Vector3d & X) const;
-    Transformation<double> pose1;  // pose of the left camera in the base frame
-    Transformation<double> pose2;  // pose of the right camera in the base frame
+    Transformation<double> TbaseCam1;  // pose of the left camera in the base frame
+    Transformation<double> TbaseCam2;  // pose of the right camera in the base frame
     ICamera * cam1, * cam2;
 };
 

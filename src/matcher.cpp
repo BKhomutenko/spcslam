@@ -99,10 +99,11 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
     Matrix3d R, RSigma, RPhi, RTot;
 
     // R is rotation matrix L -> R
-    R = stereo.pose2.rotMat();
+    Transformation<double> Tcam1cam2 = stereo.TbaseCam1.inverseCompose(stereo.TbaseCam2);
+    R = Tcam1cam2.rotMat();
 
     // t: translation vector from L -> R (L reference frame)
-    Eigen::Vector3d t = stereo.pose2.trans();
+    Eigen::Vector3d t = Tcam1cam2.trans();
 
     double sigma = std::atan2(-t(1), std::sqrt(t(0)*t(0) + t(2)*t(2)));
     double phi = std::atan2(t(2), t(0));

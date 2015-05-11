@@ -44,17 +44,17 @@ OdometryError::OdometryError(const Vector3d X, const Vector2d pt,
     camPose.toRotTransInv(Rcb, Pcb);
 }
             
-ReprojectionErrorStereo::ReprojectionErrorStereo(double u, double v,
+ReprojectionErrorStereo::ReprojectionErrorStereo(const Vector2d pt,
         const Transformation<double> & camPose,
         const ICamera * camera) 
-        : u(u), v(v), camera(camera) 
+        : u(pt[0]), v(pt[1]), camera(camera) 
 {
     camPose.toRotTransInv(Rcb, Pcb);
 }
 
-ReprojectionErrorFixed::ReprojectionErrorFixed(double u, double v, const Transformation<double> & xi,
+ReprojectionErrorFixed::ReprojectionErrorFixed(const Vector2d pt, const Transformation<double> & xi,
         const Transformation<double> & camPose, const ICamera * camera) 
-        : u(u), v(v), camera(camera) 
+        : u(pt[0]), v(pt[1]), camera(camera) 
 {
     xi.toRotTransInv(Rbo, Pbo);
     camPose.toRotTransInv(Rcb, Pcb);
@@ -195,17 +195,17 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
     return true;
 }
 
-void MapInitializer::addFixedObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
+void MapInitializer::addFixedObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
         const ICamera * cam, const Transformation<double> & camPose)
 {
-    CostFunction * costFunc = new ReprojectionErrorFixed(u, v, pose, camPose, cam);
+    CostFunction * costFunc = new ReprojectionErrorFixed(pt, pose, camPose, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data());
 }
 
-void MapInitializer::addObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
+void MapInitializer::addObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
         const ICamera * cam, const Transformation<double> & camPose)
 {
-    CostFunction * costFunc = new ReprojectionErrorStereo(u, v, camPose, cam);
+    CostFunction * costFunc = new ReprojectionErrorStereo(pt, camPose, cam);
     problem.AddResidualBlock(costFunc, NULL, X.data(), pose.transData(), pose.rotData());
 }
 
@@ -245,24 +245,24 @@ void StereoCartography::improveTheMap()
             {
                 if (observation.cameraId == LEFT)
                 {
-                    initializer.addFixedObservation(landmark.X, observation.u, observation.v,
-                            trajectory[xiIdx], stereo.cam1, stereo.pose1);
+                    initializer.addFixedObservation(landmark.X, observation.pt,
+                            trajectory[xiIdx], stereo.cam1, stereo.TbaseCam1);
                 }
                 else
                 {
-                    initializer.addFixedObservation(landmark.X, observation.u, observation.v,
-                            trajectory[xiIdx], stereo.cam2, stereo.pose2);
+                    initializer.addFixedObservation(landmark.X, observation.pt,
+                            trajectory[xiIdx], stereo.cam2, stereo.TbaseCam2);
                 }
             }
             else if (observation.cameraId == LEFT)
             {
-                initializer.addObservation(landmark.X, observation.u, observation.v,
-                        trajectory[xiIdx], stereo.cam1, stereo.pose1);
+                initializer.addObservation(landmark.X, observation.pt,
+                        trajectory[xiIdx], stereo.cam1, stereo.TbaseCam1);
             }
             else
             {
-                initializer.addObservation(landmark.X, observation.u, observation.v,
-                        trajectory[xiIdx], stereo.cam2, stereo.pose2);
+                initializer.addObservation(landmark.X, observation.pt,
+                        trajectory[xiIdx], stereo.cam2, stereo.TbaseCam2);
             }
         }
     }
@@ -383,7 +383,7 @@ Transformation<double> StereoCartography::estimateOdometry(const vector<Feature>
     vector<int> matchVec;    
     matcher.bruteForce(featureVec, lmFeatureVec, matchVec);
     
-    Odometry odometry(trajectory.back(), stereo.pose1, stereo.cam1);
+    Odometry odometry(trajectory.back(), stereo.TbaseCam1, stereo.cam1);
 //    cout << "ca va" << endl;
     for (unsigned int i = 0; i < featureVec.size(); i++)
     {

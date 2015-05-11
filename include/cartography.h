@@ -29,12 +29,12 @@ using Eigen::Matrix3d;
 struct Observation
 {
     Observation(double u, double v, unsigned int poseIdx, CameraID camId)
-        : u(u), v(v), poseIdx(poseIdx), cameraId(camId) {}
+        : pt(u, v), poseIdx(poseIdx), cameraId(camId) {}
     
     Observation(Vector2d pt, unsigned int poseIdx, CameraID camId)
-        : u(pt[0]), v(pt[1]), poseIdx(poseIdx), cameraId(camId) {}
+        : pt(pt), poseIdx(poseIdx), cameraId(camId) {}
     //observed coordinates
-    double u, v;
+    Vector2d pt;
     
     //index of corresponding positions in StereoCartograpy::trajectory
     unsigned int poseIdx; 
@@ -57,7 +57,7 @@ struct LandMark
 
 struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
 {
-    ReprojectionErrorStereo(double u, double v, const Transformation<double> & xi,
+    ReprojectionErrorStereo(const Vector2d pt, const Transformation<double> & xi,
             const ICamera * camera);
     
     // args : double lm[3], double pose[6]
@@ -78,7 +78,7 @@ struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
 
 struct ReprojectionErrorFixed : public ceres::SizedCostFunction<2, 3>
 {
-    ReprojectionErrorFixed(double u, double v, const Transformation<double> & xi,
+    ReprojectionErrorFixed(const Vector2d pt, const Transformation<double> & xi,
             const Transformation<double> & camTransformation, const ICamera * camera);
     
     // args : double lm[3]
@@ -126,11 +126,11 @@ class MapInitializer
 {
 public:
    
-    void addObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
-            const ICamera * cam, const Transformation<double> & camTransformation);
+    void addObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
+        const ICamera * cam, const Transformation<double> & camPose);
     
-    void addFixedObservation(Vector3d & X, double u, double v, Transformation<double> & pose,
-            const ICamera * cam, const Transformation<double> & camTransformation);       
+    void addFixedObservation(Vector3d & X, Vector2d pt, Transformation<double> & pose,
+        const ICamera * cam, const Transformation<double> & camPose);       
 //    void addObservationRight(Vector3d & X, double u, double v, Transformation & pose,
 //            const Camera & cam, Transformation & rightCamTransformation);
             

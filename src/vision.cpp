@@ -66,10 +66,10 @@ void StereoSystem::projectPointCloud(const vector<Vector3d> & src,
     
     vector<Vector3d> Xc;
     
-    pose1.inverseTransform(src, Xc);
+    TbaseCam1.inverseTransform(src, Xc);
     cam1->projectPointCloud(Xc, dst1);
     
-    pose2.inverseTransform(src, Xc);    
+    TbaseCam2.inverseTransform(src, Xc);    
     cam2->projectPointCloud(Xc, dst2);
 }
 
@@ -105,14 +105,14 @@ void StereoSystem::reconstructPointCloud(const vector<Vector2d> & src1,
     cam1->reconstructPointCloud(src1, vVec1);
     cam2->reconstructPointCloud(src2, vVec2);
     
-    pose1.rotate(vVec1, vVec1);
-    pose2.rotate(vVec2, vVec2);
-    Vector3d t = pose2.trans() - pose1.trans();
+    TbaseCam1.rotate(vVec1, vVec1);
+    TbaseCam2.rotate(vVec2, vVec2);
+    Vector3d t = TbaseCam2.trans() - TbaseCam1.trans();
     for (unsigned int i = 0; i < src1.size(); i++)
     {
         Vector3d & X = dst[i];
         triangulate(vVec1[i], vVec2[i], t, X);
-        X += pose1.trans();
+        X += TbaseCam1.trans();
     }
 }
 
