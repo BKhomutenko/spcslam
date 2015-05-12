@@ -14,7 +14,7 @@ INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
 
 include_directories(include)
 add_executable( calibration
-    src/main.cpp
+    src/calibration_main.cpp
 )
 
 target_link_libraries( calibration ${OpenCV_LIBS} )
