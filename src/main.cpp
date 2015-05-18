@@ -12,7 +12,7 @@
 using namespace cv;
 using Eigen::JacobiSVD;
 int main(int argc, char** argv) {
-    
+
     // Intrinsic calibration
     array<double, 6> params{0.5, 1, 500, 500, 500, 500};
 //    array<double, 6> params{0.571, 1.18, 378.304,
@@ -21,80 +21,80 @@ int main(int argc, char** argv) {
 //    array<double, 6> params2{0.570, 1.181, 377.262,
 //376.937, 659.913, 489.025};
     /*
-    Intrinsic 1 : 
+    Intrinsic 1 :
 0.285248 0.165322 378.304
 377.959 654.924 474.837
-Intrinsic 2 : 
+Intrinsic 2 :
 0.279888 0.170523 377.262
 376.937 659.913 489.025
 */
     MeiCamera cam1(params.data());
     MeiCamera cam2(params.data());
-    
+
     Transformation<double> xi(0, 0, 0, 0, 0, 0);
 //    Transformation<double> xi(0.788018, 0.00458991, -0.0203444, -0.00243237, 0.0859827, 0.000373778);
-    
+
     IntrinsicCameraCalibration<MeiProjector> calibLeft;
     IntrinsicCameraCalibration<MeiProjector> calibRight;
-    
-    if (calibLeft.initialize("calibInfoLeft.txt"))
+
+    if (calibLeft.initialize("/home/valerio/projects/spcslam/calibInfoLeft.txt"))
     {
         calibLeft.compute(cam1);
         calibLeft.residualAnalysis(cam1);
     }
-//    if (calibRight.initialize("calibInfoRight.txt"))
-//    {
-//        calibRight.compute(cam2);
-//        calibRight.residualAnalysis(cam2);
-//    }
-//    
+    if (calibRight.initialize("calibInfoRight.txt"))
+    {
+        calibRight.compute(cam2);
+        calibRight.residualAnalysis(cam2);
+    }
 
-    
-//    ExtrinsicCameraCalibration<MeiProjector> calibStereo;
-//    
-////    if (calibStereo.initialize("calibInfoLeftSmall.txt","calibInfoRightSmall.txt", "calibInfoStereo.txt"))
-//    if (calibStereo.initialize("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt"))
-//    {
-//        calibStereo.compute(cam1, cam2, xi);
-//        calibStereo.residualAnalysis(cam1, cam2, xi);
-//    }
-//    
-//    cout << "Extrinsic : " << endl;
-//    cout << xi << endl;
-//    
-//    cout << "Intrinsic 1 : " << endl;
-//    for (auto & p : cam1.params)
-//    {
-//        cout << boost::format("%3.3f ") % p;
-//    }
-//    cout << endl;
-//    cout << "Intrinsic 2 : " << endl;
-//    for (auto & p : cam2.params)
-//    {
-//        cout << boost::format("%3.3f ") % p;
-//    }
-//    cout << endl;
-//    extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
-//            par1, par2, xi);
-//    
-//    cout << "Extrinsic : " << endl;
-//    cout << xi[0] << " " << xi[1] << " " << xi[2] << endl;
-//    cout << xi[3] << " " << xi[4] << " " << xi[5] << endl;
-//    cout << "Intrinsic 1 : " << endl;
-//    cout << par1[0] << " " << par1[1] << " " << par1[2] << endl;
-//    cout << par1[3] << " " << par1[4] << " " << par1[5] << endl;
-//    cout << "Intrinsic 2 : " << endl;
-//    cout << par2[0] << " " << par2[1] << " " << par2[2] << endl;
-//    cout << par2[3] << " " << par2[4] << " " << par2[5] << endl;
-    
-    
+
+
+    ExtrinsicCameraCalibration<MeiProjector> calibStereo;
+
+    //if (calibStereo.initialize("calibInfoLeftSmall.txt","calibInfoRightSmall.txt", "calibInfoStereo.txt"))
+    if (calibStereo.initialize("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt"))
+    {
+        calibStereo.compute(cam1, cam2, xi);
+        calibStereo.residualAnalysis(cam1, cam2, xi);
+    }
+
+    cout << "Extrinsic : " << endl;
+    cout << xi << endl;
+
+    cout << "Intrinsic 1 : " << endl;
+    for (auto & p : cam1.params)
+    {
+        cout << boost::format("%3.3f ") % p;
+    }
+    cout << endl;
+    cout << "Intrinsic 2 : " << endl;
+    for (auto & p : cam2.params)
+    {
+        cout << boost::format("%3.3f ") % p;
+    }
+    cout << endl;
+/*   extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
+           par1, par2, xi);
+
+   cout << "Extrinsic : " << endl;
+   cout << xi[0] << " " << xi[1] << " " << xi[2] << endl;
+   cout << xi[3] << " " << xi[4] << " " << xi[5] << endl;
+   cout << "Intrinsic 1 : " << endl;
+   cout << par1[0] << " " << par1[1] << " " << par1[2] << endl;
+   cout << par1[3] << " " << par1[4] << " " << par1[5] << endl;
+   cout << "Intrinsic 2 : " << endl;
+   cout << par2[0] << " " << par2[1] << " " << par2[2] << endl;
+   cout << par2[3] << " " << par2[4] << " " << par2[5] << endl;
+*/
+
     // Extrinsic calibration using epipolar geometry
-    
+
     /*MeiCamera cam1mei(1296, 966, 0.579728, 1.13265, 372.661, 372.312, 655.471, 473.135);
 //par1[0], par1[1], par1[2], par1[3], par1[4], par1[5]);
     MeiCamera cam2mei(1296, 966, 0.567528, 1.18243, 376.884, 376.175, 659., 488.023);
 //par2[0], par2[1], par2[2], par2[3], par2[4], par2[5]);
-    
+
     string fileName1 = "/home/bogdan/projects/icars/calib_images/13032015_stereo_zoe/left_1426238819.pgm";
     string fileName2 = "/home/bogdan/projects/icars/calib_images/13032015_stereo_zoe/left_1426238820.pgm";
     Mat frame1 = imread(fileName1, 0);
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
 
     double params[6]{0, 0, 1000, 1000, 650, 450},
 =======
-    
+
     fileName1 = "/home/bogdan/projects/icars/calib_images/13032015_stereo_zoe/right_1426238819.pgm";
     fileName2 = "/home/bogdan/projects/icars/calib_images/13032015_stereo_zoe/right_1426238820.pgm";
     frame1 = imread(fileName1, 0);
@@ -152,20 +152,20 @@ int main(int argc, char** argv) {
     {
         proj2.push_back(Vector2d(pt.x, pt.y));
     }
-    
-    
+
+
     vector<Vector3d> pointVec1, pointVec2;
     Matrix3d E;
     cam1mei.reconstructPointCloud(proj1, pointVec1);
     cam2mei.reconstructPointCloud(proj2, pointVec2);
-    
+
     computeEssentialMatrix(pointVec1, pointVec2, E);
-    
+
     JacobiSVD<Matrix3d> svd(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
     cout << svd.singularValues() << endl;
-    
+
     cout << pointVec1[5].transpose() * E * pointVec2[5] << endl;
-    
+
     Matrix3d R90;
     Matrix3d Rm90;
     R90 << 0, -1, 0, 1, 0, 0, 0, 0, 1;
@@ -180,9 +180,9 @@ int main(int argc, char** argv) {
     //cout << "original rotation : " << endl;
    // cout << T2.rotMat() << endl;
     cout << "left sing vecs : " << endl;
-    cout << svd.matrixU() << endl;    
-    
-    /*double params[6]{0, 0, 1000, 1000, 650, 450}, 
+    cout << svd.matrixU() << endl;
+
+    /*double params[6]{0, 0, 1000, 1000, 650, 450},
 >>>>>>> calibration
     xi1[6]{-0.5, -0.5, 1, 0, 0, 0},
     xi2[6]{-0.5, -0.5, 1, 0, 0, 0},
@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
 
     addResidual("/home/bogdan/projects/icars/calib_dataset/left_1426238811.pgm",
 =======
-    
+
     addResidual("/home/bogdan/projects/icars/calib_dataset/right_1426238811.pgm",
 >>>>>>> calibration
             problem, params, xi1);

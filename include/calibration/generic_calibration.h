@@ -48,11 +48,11 @@ protected:
     double sqSize;
     double outlierThresh;
     vector<Vector3d> grid;
-    
+
 public:
 
     //TODO chanche the file formatting
-    bool initializeIntrinsic(const string & infoFileName, 
+    bool initializeIntrinsic(const string & infoFileName,
             vector<CalibrationData> & calibDataVec)
     {
         // open the file and read the data
@@ -65,34 +65,34 @@ public:
         bool checkExtraction;
         calibInfoFile >> Nx >> Ny >> sqSize >> outlierThresh >> checkExtraction;
         calibInfoFile.ignore();  // To get to the next line
-        
+
         calibDataVec.clear();
         string imageFolder;
-        string imageName;    
+        string imageName;
         getline(calibInfoFile, imageFolder);
         while (getline(calibInfoFile, imageName))
         {
             CalibrationData calibData;
             vector<Vector2d> projection;
             bool isExtracted;
-            
+
             calibData.fileName = imageFolder + imageName;
             isExtracted = extractGridProjection(calibData, checkExtraction);
-            
+
             if (not isExtracted)
             {
                 continue;
-            }      
-                  
+            }
+
             calibData.extrinsic = ArraySharedPtr(new array<double, 6>{0, 0, 1, 0, 0, 0});
             calibDataVec.push_back(calibData);
-            
+
             cout << "." << flush;
         }
         cout << "done" << endl;
         return true;
     }
-    
+
     bool extractGridProjection(CalibrationData & calibData, bool checkExtraction)
     {
         Size patternSize(Nx, Ny);
@@ -105,7 +105,7 @@ public:
             cout << calibData.fileName << " : ERROR, pattern is not found" << endl;
             return false;
         }
-        
+
         if (checkExtraction)
         {
             drawChessboardCorners(frame, patternSize, Mat(centers), patternIsFound);
@@ -114,10 +114,10 @@ public:
             if (key == 'n' or key == 'N')
             {
                 cout << calibData.fileName << " : ERROR, pattern is not accepted" << endl;
-                return false; 
-            }  
-        } 
-        
+                return false;
+            }
+        }
+
         calibData.projection.resize(Nx * Ny);
         for (unsigned int i = 0; i < Nx * Ny; i++)
         {
@@ -150,19 +150,19 @@ public:
             costFunction->AddParameterBlock(6);
             costFunction->SetNumResiduals(2 * Nx * Ny);
             problem.AddResidualBlock(costFunction, new CauchyLoss(1),
-                    calibDataVec[i].extrinsic->data());   
-            
+                    calibDataVec[i].extrinsic->data());
+
             //run the solver
             Solver::Options options;
             Solver::Summary summary;
             Solve(options, &problem, &summary);
         }
     }
-    
+
     void initIntrinsicProblem(Problem & problem, vector<double> & intrinsic,
             vector<CalibrationData> & calibDataVec)
     {
-        typedef DynamicAutoDiffCostFunction<GridProjection<Projector>> projectionCF;        
+        typedef DynamicAutoDiffCostFunction<GridProjection<Projector>> projectionCF;
         for (unsigned int i = 0; i < calibDataVec.size(); i++)
         {
             GridProjection<Projector> * boardProjection;
@@ -172,21 +172,21 @@ public:
             costFunction->AddParameterBlock(6);
             costFunction->SetNumResiduals(2 * Nx * Ny);
             problem.AddResidualBlock(costFunction, NULL, intrinsic.data(),
-                    calibDataVec[i].extrinsic->data());   
+                    calibDataVec[i].extrinsic->data());
         }
     }
-    
+
     void residualAnalysis(const ICamera & camera,
             const vector<CalibrationData> & calibDataVec)
     {
         residualAnalysis(camera, calibDataVec, Transformation<double>());
     }
-            
+
     void residualAnalysis(const ICamera & camera,
             const vector<CalibrationData> & calibDataVec,
             const Transformation<double> & TrefCam)
     {
-        
+
         double Ex = 0, Ey = 0;
         double Emax = 0;
         Mat errorPlot(400, 400, CV_32F, Scalar(0));
@@ -199,18 +199,18 @@ public:
                 Transformation<double> TrefGrid(calibDataVec[ptIdx].extrinsic->data());
                 Transformation<double> TcamGrid = TrefCam.inverseCompose(TrefGrid);
                 TcamGrid.transform(grid, transfModelVec);
-                
+
                 vector<Vector2d> projModelVec;
                 camera.projectPointCloud(transfModelVec, projModelVec);
-                
+
                 Mat frame = imread(calibDataVec[ptIdx].fileName, 0);
-                
+
                 bool outlierDetected = false;
                 for (unsigned int i = 0; i < Nx * Ny; i++)
                 {
                     Vector2d p = calibDataVec[ptIdx].projection[i];
                     Vector2d pModel = projModelVec[i];
-                    
+
                     circle(frame, Point(p(0), p(1)), 7, 127, 1);
                     circle(frame, Point(pModel(0), pModel(1)), 4.5, 255, 1);
                     Vector2d delta = p - pModel;
@@ -246,7 +246,7 @@ public:
         Ex = sqrt(Ex);
         Ey = sqrt(Ey);
         Emax = sqrt(Emax);
-        cout << "Ex = " << Ex << "; Ey = " << Ey << "; Emax = " << Emax << endl;  
+        cout << "Ex = " << Ex << "; Ey = " << Ey << "; Emax = " << Emax << endl;
     }
 };
 

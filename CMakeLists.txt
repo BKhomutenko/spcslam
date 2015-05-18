@@ -40,6 +40,17 @@ add_executable( matching_test
 target_link_libraries( matching_test ${OpenCV_LIBS} )
 TARGET_LINK_LIBRARIES( matching_test ${CERES_LIBRARIES})
 
+add_executable( odometry_test
+    src/tests/odometry_tests.cpp
+    src/vision.cpp
+    src/matcher.cpp
+    src/extractor.cpp
+    src/cartography.cpp
+)
+
+target_link_libraries( odometry_test ${OpenCV_LIBS} )
+TARGET_LINK_LIBRARIES( odometry_test ${CERES_LIBRARIES})
+
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "-O2")        ## Optimize
     set(CMAKE_EXE_LINKER_FLAGS "-s")  ## Strip binary

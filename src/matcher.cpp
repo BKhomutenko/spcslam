@@ -198,6 +198,8 @@ void Matcher::stereoMatch(const vector<Feature> & fVec1,
         double bestDist = distTh;
         int iTempMatch = 0;
 
+        //cout << endl << "j=" << j << endl;
+
         if (debug)
         {
             int binDiff = binMapL(round(fVec1[j].pt(1)), round(fVec1[j].pt(0))) -
@@ -208,6 +210,7 @@ void Matcher::stereoMatch(const vector<Feature> & fVec1,
 
         for (int i = 0; i < N1 ; i++)
         {
+            //cout << endl << "i=" << i << endl;
             if (abs(binMapL(round(fVec1[i].pt(1)), round(fVec1[i].pt(0))) -
                     binMapR(round(fVec2[j].pt(1)), round(fVec2[j].pt(0)))) <= 1)
             {
@@ -217,6 +220,7 @@ void Matcher::stereoMatch(const vector<Feature> & fVec1,
                 {
                     bestDist = dist;
                     iTempMatch = i;
+                    //cout << "bestDist=" << bestDist << endl;
                 }
             }
         }
