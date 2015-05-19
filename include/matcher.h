@@ -42,8 +42,6 @@ public:
 
     void initStereoBins(const StereoSystem & stereo);
 
-    Extractor extractor(1000, 2, 2, false, true);
-
 };
 
 #endif

@@ -179,6 +179,8 @@ public:
 
     Matcher matcher;
 
+    Extractor extractor(1000, 2, 2, false, true);
+
     void projectPointCloud(const vector<Vector3d> & src,
             vector<Vector2d> & dst1, vector<Vector2d> & dst2, int poseIdx) const;
 
