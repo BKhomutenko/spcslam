@@ -209,11 +209,10 @@ void initializeMap()
     MeiCamera cam2(1296, 966, params2.data());
     Transformation<double> t1(0, 0, 0, 0, 0, 0);
     Transformation<double> t2(0.788019, 0.00459233, -0.0203431, -0.00243736, 0.0859855, 0.000375454);
+
     StereoCartography map(t1, t2, cam1, cam2);
 
-    Extractor extractor(1000, 2, 2, false, true);
-    Matcher matcher;
-    matcher.initStereoBins(map.stereo);
+    map.matcher.initStereoBins(map.stereo);
 
 /*    Transformation<double> TfirstSecond, t0;
 
@@ -237,15 +236,15 @@ void initializeMap()
         cv::Mat image2 = cv::imread(imageFile2, 0);
 
         vector<Feature> featuresVec1, featuresVec2, matchedFeaturesVec1, matchedFeaturesVec2;
-        extractor(image1, featuresVec1);
-        extractor(image2, featuresVec2);
+        map.extractor(image1, featuresVec1);
+        map.extractor(image2, featuresVec2);
 
         Transformation<double> trajectorySegment;
         if (i > 0) trajectorySegment = map.estimateOdometry(featuresVec1);
         map.trajectory.push_back(trajectorySegment);
 
         vector<int> matches;
-        matcher.stereoMatch(featuresVec1, featuresVec2, matches);
+        map.matcher.stereoMatch(featuresVec1, featuresVec2, matches);
 
         // create vectors of 2D points and descriptors from matched features
         vector<Eigen::Vector2d> pointsVec1, pointsVec2;
@@ -265,7 +264,7 @@ void initializeMap()
         map.stereo.reconstructPointCloud(pointsVec1, pointsVec2, pointCloud);
 
             //create landmarks
-        for (int i = 0; i < PC.size(); i++)
+        /*for (int i = 0; i < PC.size(); i++)
         {
             Observation o1(fVec1m[i].pt, 0, CameraID::LEFT);
             Observation o2(fVec2m[i].pt, 0, CameraID::RIGHT);
@@ -280,7 +279,7 @@ void initializeMap()
 
             map.LM.push_back(L);
         }
-
+*/
     }
 
 

@@ -15,6 +15,7 @@ The mapping system itself
 #include <ceres/ceres.h>
 
 #include "extractor.h"
+#include "matcher.h"
 #include "geometry.h"
 #include "vision.h"
 
@@ -172,14 +173,18 @@ class StereoCartography
 public:
     StereoCartography (Transformation<double> & p1, Transformation<double> & p2,
             ICamera & c1, ICamera & c2)
-            : stereo(p1, p2, c1, c2) {}
+            : stereo(p1, p2, c1, c2)
+    {
+        Extractor extr(1000, 2, 2, false, true);
+        extractor = extr;
+    }
 //    virtual ~StereoCartography () { LM.clear(); trajectory.clear(); }
 
     StereoSystem stereo;
 
     Matcher matcher;
 
-    Extractor extractor(1000, 2, 2, false, true);
+    Extractor extractor;
 
     void projectPointCloud(const vector<Vector3d> & src,
             vector<Vector2d> & dst1, vector<Vector2d> & dst2, int poseIdx) const;

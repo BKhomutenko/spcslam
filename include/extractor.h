@@ -42,6 +42,8 @@ public:
     Extractor(double hessianThreshold, int nOctaves, int nOctaveLayers, bool extended, bool upright)
     : det(hessianThreshold, nOctaves, nOctaveLayers, extended, upright) {}
 
+    Extractor() {}
+
     void operator()(const cv::Mat & img, std::vector<Feature> & kpVec);
 
 };
