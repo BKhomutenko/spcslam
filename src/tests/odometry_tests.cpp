@@ -1,4 +1,5 @@
 #include <fstream>
+#include <sstream>
 
 #include "matcher.h"
 #include "cartography.h"
@@ -35,9 +36,8 @@ void drawPoints(const vector<Feature> & fVec1,
     }
 }
 
-int main()
+void testOdometry()
 {
-
     float resizeRatio = 1;
 
     //stringstream sstm;
@@ -123,8 +123,6 @@ int main()
 
     TfirstSecond.inverseTransform(PC, PCsecond);
 
-
-
     cout << endl << "Estimation completed" << endl;
 
     cout << endl << TfirstSecond << endl;
@@ -193,5 +191,123 @@ int main()
     cv::imshow("Right", img2L);
 
     cv::waitKey();
+}
+
+void initializeMap()
+{
+
+    int Nsteps = 5;
+
+    string datasetPath("/home/valerio/projects/datasets/dataset_odometry/");
+    string prefix1("view_left_");
+    string prefix2("view_right_");
+    string extension(".png");
+
+    array<double, 6> params1{0.571, 1.180, 378.304, 377.960, 654.923, 474.835};
+    array<double, 6> params2{0.570, 1.186, 377.262, 376.938, 659.914, 489.024};
+    MeiCamera cam1(1296, 966, params1.data());
+    MeiCamera cam2(1296, 966, params2.data());
+    Transformation<double> t1(0, 0, 0, 0, 0, 0);
+    Transformation<double> t2(0.788019, 0.00459233, -0.0203431, -0.00243736, 0.0859855, 0.000375454);
+    StereoCartography map(t1, t2, cam1, cam2);
+
+    Extractor extractor(1000, 2, 2, false, true);
+    Matcher matcher;
+    matcher.initStereoBins(map.stereo);
+
+/*    Transformation<double> TfirstSecond, t0;
+
+    map.trajectory.push_back(t0);
+
+    TfirstSecond = map.estimateOdometry(fVec3);
+
+    vector<Eigen::Vector3d> PCsecond;
+
+    TfirstSecond.inverseTransform(PC, PCsecond);
+
+  */
+
+    for (int i = 0; i < Nsteps; i++)
+    {
+
+        string imageFile1 = datasetPath + prefix1 + to_string(i) + extension;
+        string imageFile2 = datasetPath + prefix2 + to_string(i) + extension;
+
+        cv::Mat image1 = cv::imread(imageFile1, 0);
+        cv::Mat image2 = cv::imread(imageFile2, 0);
+
+        vector<Feature> featuresVec1, featuresVec2, matchedFeaturesVec1, matchedFeaturesVec2;
+        extractor(image1, featuresVec1);
+        extractor(image2, featuresVec2);
+
+        Transformation<double> trajectorySegment;
+        if (i > 0) trajectorySegment = map.estimateOdometry(featuresVec1);
+        map.trajectory.push_back(trajectorySegment);
+
+        vector<int> matches;
+        matcher.stereoMatch(featuresVec1, featuresVec2, matches);
+
+        // create vectors of 2D points and descriptors from matched features
+        vector<Eigen::Vector2d> pointsVec1, pointsVec2;
+        vector<Matrix<float,64,1> > descriptorsVec;
+        for (int j = 0; j < featuresVec1.size(); j++)
+        {
+            if (matches[j] != -1)
+            {
+                pointsVec1.push_back(featuresVec1[j].pt);
+                pointsVec2.push_back(featuresVec2[matches[j]].pt);
+                descriptorsVec.push_back(featuresVec1[j].desc);
+            }
+        }
+
+        // reconstruct point cloud
+        vector<Eigen::Vector3d> pointCloud;
+        map.stereo.reconstructPointCloud(pointsVec1, pointsVec2, pointCloud);
+
+            //create landmarks
+        for (int i = 0; i < PC.size(); i++)
+        {
+            Observation o1(fVec1m[i].pt, 0, CameraID::LEFT);
+            Observation o2(fVec2m[i].pt, 0, CameraID::RIGHT);
+            vector<Observation> oVec;
+            oVec.push_back(o1);
+            oVec.push_back(o2);
+
+            LandMark L;
+            L.X = PC[i];
+            L.observations = oVec;
+            L.d = fVec1m[i].desc;
+
+            map.LM.push_back(L);
+        }
+
+    }
+
+
+    /*
+    step iniziale:
+        carica stereo pair 0, ricava i primi landmarks e inizializza trajectory con identity
+    for (i)
+    {
+        carica stereo pair i
+        usa immagine sx per calcolare l'odometry
+        calcola stereo matches
+        ricostruisci landmarks visibili (occhio al frame)
+        riproietta landmarks in memoria sulle immagini correnti (occhio al frame)
+        ricava due insiemi:
+            - landmarks in memoria non confermati
+            - nuovi landmarks
+        elimina landmarks non confermati e aggiungi i nuovi
+    }
+    */
+}
+
+
+int main()
+{
+
+    testOdometry();
+
+    //initializeMap();
 
 }
