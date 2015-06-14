@@ -239,6 +239,10 @@ void StereoCartography::improveTheMap()
     MapInitializer initializer;
     for (auto & landmark : LM)
     {
+        if (landmark.observations.size() < 6)
+        {
+            continue;
+        }
         for (auto & observation : landmark.observations)
         {
             int xiIdx = observation.poseIdx;
@@ -299,7 +303,9 @@ void Odometry::Ransac()
 
     inlierMask.resize(numPoints);
 
-    const int numIterMax = 50;
+    srand(0);
+
+    const int numIterMax = 1000;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -308,17 +314,17 @@ void Odometry::Ransac()
         Transformation<double> pose = initialPose;
         int maxIdx = observationVec.size();
         //choose three points at random
-	    int idx1m = rand() % maxIdx;
-	    int idx2m, idx3m;
-	    do
-	    {
-		    idx2m = rand() % maxIdx;
-	    } while (idx2m == idx1m);
+        int idx1m = rand() % maxIdx;
+        int idx2m, idx3m;
+        do
+        {
+                idx2m = rand() % maxIdx;
+        } while (idx2m == idx1m);
 
-	    do
-	    {
-		    idx3m = rand() % maxIdx;
-	    } while (idx3m == idx1m or idx3m == idx2m);
+        do
+        {
+                idx3m = rand() % maxIdx;
+        } while (idx3m == idx1m or idx3m == idx2m);
 
 
         //solve an optimization problem
@@ -335,7 +341,7 @@ void Odometry::Ransac()
         Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
         Solver::Summary summary;
-        options.max_num_iterations = 5;
+        options.max_num_iterations = 10;
         Solve(options, &problem, &summary);
 
         //count inliers
@@ -350,7 +356,7 @@ void Odometry::Ransac()
         for (unsigned int i = 0; i < numPoints; i++)
         {
             Vector2d err = observationVec[i] - projVec[i];
-            if (err.norm() < 5)
+            if (err.norm() < 3)
             {
                 currentInlierMask[i] = true;
                 countInliers++;
@@ -367,31 +373,78 @@ void Odometry::Ransac()
     }
 }
 
-Transformation<double> StereoCartography::estimateOdometry(const vector<Feature> & featureVec)
+// Transformation<double> StereoCartography::estimateOdometry(const vector<Feature> & featureVec) const
+// {
+//     //Matching
+//
+//     int numLandmarks = LM.size();
+//     int numActive = min(100, numLandmarks);
+//     vector<Feature> lmFeatureVec;
+// //    cout << "ca va" << endl;
+//     for (unsigned int i = numLandmarks - numActive; i < numLandmarks; i++)
+//     {
+//         lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[i].d));
+//     }
+// //    cout << "ca va" << endl;
+//     Matcher matcher;
+//     vector<int> matchVec;
+//     matcher.bruteForce(lmFeatureVec, featureVec, matchVec);
+//
+//     Odometry odometry(trajectory.back(), stereo.TbaseCam1, stereo.cam1);
+// //    cout << "ca va" << endl;
+//     for (unsigned int i = 0; i < numActive; i++)
+//     {
+//         const int match = matchVec[i];
+//         if (match == -1) continue;
+//         odometry.observationVec.push_back(featureVec[match].pt);
+//         odometry.cloud.push_back(LM[numLandmarks  - numActive + i].X);
+//     }
+// //    cout << "cloud : " << odometry.cloud.size() << endl;
+//     //RANSAC
+//     odometry.Ransac();
+// //    cout << odometry.TorigBase << endl;
+//     //Final transformation computation
+//     odometry.computeTransformation();
+// //    cout << odometry.TorigBase << endl;
+//     return odometry.TorigBase;
+// }
+
+Transformation<double> StereoCartography::estimateOdometry(const vector<Feature> & featureVec) const
 {
     //Matching
 
     int numLandmarks = LM.size();
-    int numActive = min(300, numLandmarks);
+    int maxActive = 300;
+    int numActive = 0;
+    vector<int> correspondence;
     vector<Feature> lmFeatureVec;
 //    cout << "ca va" << endl;
-    for (unsigned int i = numLandmarks - numActive; i < numLandmarks; i++)
+    int k = numLandmarks;
+    while (k > 0 and numActive < maxActive)
     {
-        lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[i].d));
+        k--;
+        Eigen::Vector3d Xb, Xc;
+        trajectory.back().inverseTransform(LM[k].X, Xb);
+        stereo.TbaseCam1.inverseTransform(Xb, Xc);
+        if (Xc(2) > 0)
+        {
+            lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[k].d));
+            numActive++;
+            correspondence.push_back(k);
+        }
     }
+
 //    cout << "ca va" << endl;
-    Matcher matcher;
     vector<int> matchVec;
-    matcher.bruteForce(featureVec, lmFeatureVec, matchVec);
+    matcher.bruteForceOneToOne(lmFeatureVec, featureVec, matchVec);
 
     Odometry odometry(trajectory.back(), stereo.TbaseCam1, stereo.cam1);
 //    cout << "ca va" << endl;
-    for (unsigned int i = 0; i < featureVec.size(); i++)
+    for (unsigned int i = 0; i < numActive; i++)
     {
-        const int match = matchVec[i];
-        if (match == -1) continue;
-        odometry.observationVec.push_back(featureVec[i].pt);
-        odometry.cloud.push_back(LM[numLandmarks  - numActive + match].X);
+        if (matchVec[i] == -1) continue;
+        odometry.observationVec.push_back(featureVec[matchVec[i]].pt);
+        odometry.cloud.push_back(LM[correspondence[i]].X);
     }
 //    cout << "cloud : " << odometry.cloud.size() << endl;
     //RANSAC
@@ -402,8 +455,6 @@ Transformation<double> StereoCartography::estimateOdometry(const vector<Feature>
 //    cout << odometry.TorigBase << endl;
     return odometry.TorigBase;
 }
-
-
 
 
 

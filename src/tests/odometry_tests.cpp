@@ -1,5 +1,6 @@
 #include <fstream>
 #include <sstream>
+#include <ctime>
 
 #include "matcher.h"
 #include "cartography.h"
@@ -33,6 +34,22 @@ void drawPoints(const vector<Feature> & fVec1,
     {
 
         cv::circle(out, cv::Point(ptVec2[i](0), ptVec2[i](1)), 10, cv::Scalar(0, 0, 255));
+    }
+}
+
+void drawPoints(const vector<Feature> & fVec1,
+                const vector<Feature> & fVec2,
+                cv::Mat & out, cv::Scalar color1, cv::Scalar color2)
+{
+    for (int i = 0; i < fVec1.size(); i++)
+    {
+        cv::circle(out, cv::Point(fVec1[i].pt(0), fVec1[i].pt(1)), 5, color1);
+
+    }
+    for (int i = 0; i < fVec2.size(); i++)
+    {
+
+        cv::circle(out, cv::Point(fVec2[i].pt(0), fVec2[i].pt(1)), 10, color2);
     }
 }
 
@@ -70,9 +87,8 @@ void testOdometry()
     cout << endl << "N1=" << N1 << " N2=" << N2 << " N3=" << N3 << endl;
 
     vector<int> matches(N1, -1);
-    Matcher matcher;
-    matcher.initStereoBins(map.stereo);
-    matcher.stereoMatch(fVec1, fVec2, matches);
+
+    map.matcher.stereoMatch(fVec1, fVec2, matches);
 
     //vector<Eigen::Vector2d> vec1, vec2;
     //vector<Eigen::Vector3d> vecR;
@@ -117,86 +133,92 @@ void testOdometry()
 
     map.trajectory.push_back(t0);
 
-    TfirstSecond = map.estimateOdometry(fVec3);
-
     vector<Eigen::Vector3d> PCsecond;
 
-    TfirstSecond.inverseTransform(PC, PCsecond);
-
-    cout << endl << "Estimation completed" << endl;
-
-    cout << endl << TfirstSecond << endl;
-
-    /*
-    // save point cloud to text file
-    ofstream myfile("cloud.txt");
-    if (myfile.is_open())
+    for (int i = 0; i < 10; i++)
     {
+
+        TfirstSecond = map.estimateOdometry(fVec3);
+
+        TfirstSecond.inverseTransform(PC, PCsecond);
+
+        //cout << endl << "Estimation completed" << endl;
+
+        cout << endl << " Odometry:" << TfirstSecond << endl << endl;
+
+
+        /*
+        // save point cloud to text file
+        ofstream myfile("cloud.txt");
+        if (myfile.is_open())
+        {
+            for (int i = 0; i < map.LM.size(); i++)
+            {
+                myfile << map.LM[i].X << "\n";
+            }
+            myfile.close();
+            cout << endl << "Point cloud saved to file" << endl;
+        }
+        */
+
+        // reproject point cloud (first)
+        vector<Eigen::Vector2d> pc1, pc2;
+        map.stereo.projectPointCloud(PC, pc1, pc2);
+
+        // reproject point cloud (second)
+        vector<Eigen::Vector2d> pc1second, pc2second;
+        map.stereo.projectPointCloud(PCsecond, pc1second, pc2second);
+
+
+        /*
+        // display the projected points along with the original features (one at the time)
+        cv::Mat outL, outR;
         for (int i = 0; i < map.LM.size(); i++)
         {
-            myfile << map.LM[i].X << "\n";
+            vector<cv::KeyPoint> k;
+            k.push_back(cv::KeyPoint(ptVec1[i](0), ptVec1[i](1), 5));
+            cv::drawKeypoints(img1L, k, outL, cv::Scalar(0, 255, 0),
+                            cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+            k.clear();
+            k.push_back(cv::KeyPoint(pc1[i](0), pc1[i](1), 10));
+            cv::drawKeypoints(outL, k, outL, cv::Scalar(0, 0, 255),
+                            cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+            k.clear();
+            k.push_back(cv::KeyPoint(ptVec2[i](0), ptVec2[i](1), 5));
+            cv::drawKeypoints(img1R, k, outR, cv::Scalar(0, 255, 0),
+                            cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+            k.clear();
+            k.push_back(cv::KeyPoint(pc2[i](0), pc2[i](1), 10));
+            cv::drawKeypoints(outR, k, outR, cv::Scalar(0, 0, 255),
+                            cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+            cv::imshow("Left", outL);
+            cv::imshow("Right", outR);
+
+            cv::waitKey();
         }
-        myfile.close();
-        cout << endl << "Point cloud saved to file" << endl;
+        */
+
+        /*drawPoints(ptVec1, pc1, img1L);
+        drawPoints(fVec3, pc1second, img2L);
+
+        cv::imshow("Left", img1L);
+        cv::imshow("Right", img2L);
+
+        cv::waitKey();*/
     }
-    */
-
-    cout << endl;
-
-    // reproject point cloud (first)
-    vector<Eigen::Vector2d> pc1, pc2;
-    map.stereo.projectPointCloud(PC, pc1, pc2);
-
-    // reproject point cloud (second)
-    vector<Eigen::Vector2d> pc1second, pc2second;
-    map.stereo.projectPointCloud(PCsecond, pc1second, pc2second);
-
-
-    /*
-    // display the projected points along with the original features (one at the time)
-    cv::Mat outL, outR;
-    for (int i = 0; i < map.LM.size(); i++)
-    {
-        vector<cv::KeyPoint> k;
-        k.push_back(cv::KeyPoint(ptVec1[i](0), ptVec1[i](1), 5));
-        cv::drawKeypoints(img1L, k, outL, cv::Scalar(0, 255, 0),
-                          cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-
-        k.clear();
-        k.push_back(cv::KeyPoint(pc1[i](0), pc1[i](1), 10));
-        cv::drawKeypoints(outL, k, outL, cv::Scalar(0, 0, 255),
-                          cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-
-        k.clear();
-        k.push_back(cv::KeyPoint(ptVec2[i](0), ptVec2[i](1), 5));
-        cv::drawKeypoints(img1R, k, outR, cv::Scalar(0, 255, 0),
-                          cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-
-        k.clear();
-        k.push_back(cv::KeyPoint(pc2[i](0), pc2[i](1), 10));
-        cv::drawKeypoints(outR, k, outR, cv::Scalar(0, 0, 255),
-                          cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-
-        cv::imshow("Left", outL);
-        cv::imshow("Right", outR);
-
-        cv::waitKey();
-    }
-    */
-
-    drawPoints(ptVec1, pc1, img1L);
-    drawPoints(fVec3, pc1second, img2L);
-
-    cv::imshow("Left", img1L);
-    cv::imshow("Right", img2L);
-
-    cv::waitKey();
 }
 
+// divide in functions initEmptyMap, addObservation, addLandmark
 void initializeMap()
 {
 
-    int Nsteps = 5;
+    int Nsteps = 600;
+
+    bool display = false;
 
     string datasetPath("/home/valerio/projects/datasets/dataset_odometry/");
     string prefix1("view_left_");
@@ -212,101 +234,345 @@ void initializeMap()
 
     StereoCartography map(t1, t2, cam1, cam2);
 
-    map.matcher.initStereoBins(map.stereo);
+    cv::Scalar color1(255), color2(255);
 
-/*    Transformation<double> TfirstSecond, t0;
+    clock_t begin, end, time1, time2, time3;
+    double dt;
 
-    map.trajectory.push_back(t0);
-
-    TfirstSecond = map.estimateOdometry(fVec3);
-
-    vector<Eigen::Vector3d> PCsecond;
-
-    TfirstSecond.inverseTransform(PC, PCsecond);
-
-  */
+    begin = clock();
 
     for (int i = 0; i < Nsteps; i++)
     {
 
+        time1 = clock();
+        // acquire images
         string imageFile1 = datasetPath + prefix1 + to_string(i) + extension;
         string imageFile2 = datasetPath + prefix2 + to_string(i) + extension;
-
         cv::Mat image1 = cv::imread(imageFile1, 0);
         cv::Mat image2 = cv::imread(imageFile2, 0);
 
-        vector<Feature> featuresVec1, featuresVec2, matchedFeaturesVec1, matchedFeaturesVec2;
+        // extract features
+        vector<Feature> featuresVec1, featuresVec2,
+                        featuresVecC1, featuresVecC2, featuresLM1, featuresLM2;
         map.extractor(image1, featuresVec1);
         map.extractor(image2, featuresVec2);
+        int N1 = featuresVec1.size();
+        int N2 = featuresVec2.size();
 
-        Transformation<double> trajectorySegment;
-        if (i > 0) trajectorySegment = map.estimateOdometry(featuresVec1);
-        map.trajectory.push_back(trajectorySegment);
+        if (display)
+        {
+            cv::Mat testIm1(image1);
+
+            drawPoints(featuresVec1, featuresVec1, testIm1, color1, color1);
+            imshow("Extracted features", testIm1);
+
+            cout << endl << "wait 1" << endl;
+            cv::waitKey();
+        }
+
+        vector<LandMark> tempLM;
+        if (i == 0)
+        {
+            map.trajectory.push_back(Transformation<double>());
+            featuresVecC1.swap(featuresVec1);
+            featuresVecC2.swap(featuresVec2);
+        }
+        else
+        {
+            int N = map.LM.size();
+            //cout << "map size " << N << endl;
+            Transformation<double> newPose = map.estimateOdometry(featuresVec1);
+            cout << endl << endl << "i=" << i << "  Odometry: " << newPose << endl;
+            map.trajectory.push_back(newPose);
+
+            // project landmarks on image planes
+            vector<Eigen::Vector3d> point3D, point3Daux;
+            vector<Eigen::Vector2d> point2D1, point2D2;
+            vector<Feature> featuresLM1, featuresLM2;
+            vector<int> correspondence;
+
+            for (int j = 0; j < N; j++)
+            {
+                point3Daux.push_back(map.LM[j].X);
+            }
+            map.trajectory[i].inverseTransform(point3Daux, point3Daux);
+            for (int j = 0; j < N; j++)
+            {
+                if (point3Daux[j](2) > 0)
+                {
+                    point3D.push_back(map.LM[j].X);
+                    correspondence.push_back(j);
+                }
+            }
+
+            int Nprojected = point3D.size();
+            map.projectPointCloud(point3D, point2D1, point2D2, i);
+
+            for (int j = 0; j < Nprojected; j++)
+            {
+                Feature f1(point2D1[j], map.LM[correspondence[j]].d, 1, 1);
+                Feature f2(point2D2[j], map.LM[correspondence[j]].d, 1, 1); //size and angle?
+                featuresLM1.push_back(f1);
+                featuresLM2.push_back(f2);
+            }
+
+            // match reprojections with extracted features
+            vector<int> matchesR1, matchesR2;
+            map.matcher.matchReprojected(featuresLM1, featuresVec1, matchesR1);
+            map.matcher.matchReprojected(featuresLM2, featuresVec2, matchesR2);
+
+            /*
+            cout << matchesR1.size() << endl;
+            int macc = 0;
+            for (int j = 0; j < N; j++)
+                if (matchesR1[j] != -1)
+                    macc++;
+            cout << endl << "MatchesR1: " << macc;
+
+            macc = 0;
+            for (int j = 0; j < N; j++)
+                if (matchesR2[j] != -1)
+                    macc++;
+            cout << "   MatchesR2: " << macc << endl;
+            */
+
+            // update observations
+            for(int j = 0; j < Nprojected; j++)
+            {
+                if (matchesR1[j] != -1)
+                {
+                    Observation o1(featuresVec1[matchesR1[j]].pt, i, CameraID::LEFT);
+                    map.LM[correspondence[j]].observations.push_back(o1);
+                }
+                if (matchesR2[j] != -1)
+                {
+                    Observation o2(featuresVec2[matchesR2[j]].pt, i, CameraID::RIGHT);
+                    map.LM[correspondence[j]].observations.push_back(o2);
+                }
+            }
+
+            // update landmark database
+            int allowedGaps = 0;
+            for (int j = 0; j < N; j++)
+            {
+                int nObs = map.LM[j].observations.size();
+                if (nObs >= 6)
+                {
+                    tempLM.push_back(map.LM[j]);
+                }
+                else
+                {
+                    unsigned int lastOb = map.LM[j].observations[nObs-1].poseIdx;
+                    if (lastOb >= i - allowedGaps)
+                    {
+                        tempLM.push_back(map.LM[j]);
+                    }
+                }
+            }
+            map.LM = tempLM;
+
+            cout << "i=" << i << "  LM erased: " << N - tempLM.size();
+
+            if (display)
+            {
+                drawPoints(featuresLM1, featuresLM1, image1, color1, color2);
+                cv::imshow("Reprojections", image1);
+                //cv::waitKey(500);
+            }
+
+            // create vectors of candidates for new landmarks
+            vector<bool> candidates1(N1, true), candidates2(N2, true);
+            for (int j = 0; j < Nprojected; j++)
+            {
+                if (matchesR1[j] != -1)
+                {
+                    candidates1[matchesR1[j]] = false;
+                }
+
+                if (matchesR2[j] != -1)
+                {
+                    candidates2[matchesR2[j]] = false;
+                }
+            }
+            for (int j = 0; j < N1; j++)
+            {
+                if (candidates1[j] == true)
+                {
+                    featuresVecC1.push_back(featuresVec1[j]);
+                }
+            }
+            for (int j = 0; j < N2; j++)
+            {
+                if (candidates2[j] == true)
+                {
+                    featuresVecC2.push_back(featuresVec2[j]);
+                }
+            }
+        }
 
         vector<int> matches;
-        map.matcher.stereoMatch(featuresVec1, featuresVec2, matches);
+        map.matcher.stereoMatch(featuresVecC1, featuresVecC2, matches);
 
         // create vectors of 2D points and descriptors from matched features
         vector<Eigen::Vector2d> pointsVec1, pointsVec2;
         vector<Matrix<float,64,1> > descriptorsVec;
-        for (int j = 0; j < featuresVec1.size(); j++)
+        for (int j = 0; j < featuresVecC1.size(); j++)
         {
             if (matches[j] != -1)
             {
-                pointsVec1.push_back(featuresVec1[j].pt);
-                pointsVec2.push_back(featuresVec2[matches[j]].pt);
-                descriptorsVec.push_back(featuresVec1[j].desc);
+                pointsVec1.push_back(featuresVecC1[j].pt);
+                pointsVec2.push_back(featuresVecC2[matches[j]].pt);
+                descriptorsVec.push_back(featuresVecC1[j].desc);
             }
         }
 
-        // reconstruct point cloud
+        // reconstruct point cloud (stereo frame)
         vector<Eigen::Vector3d> pointCloud;
         map.stereo.reconstructPointCloud(pointsVec1, pointsVec2, pointCloud);
 
-            //create landmarks
-        /*for (int i = 0; i < PC.size(); i++)
+        // transform to world frame
+        map.trajectory[i].transform(pointCloud, pointCloud);
+
+        //if (i == 0)
         {
-            Observation o1(fVec1m[i].pt, 0, CameraID::LEFT);
-            Observation o2(fVec2m[i].pt, 0, CameraID::RIGHT);
-            vector<Observation> oVec;
-            oVec.push_back(o1);
-            oVec.push_back(o2);
+            //create landmarks
+            for (int j = 0; j < pointCloud.size(); j++)
+            {
+                Observation o1(pointsVec1[j], i, CameraID::LEFT);
+                Observation o2(pointsVec2[j], i, CameraID::RIGHT);
+                vector<Observation> oVec;
+                oVec.push_back(o1);
+                oVec.push_back(o2);
 
-            LandMark L;
-            L.X = PC[i];
-            L.observations = oVec;
-            L.d = fVec1m[i].desc;
+                LandMark L;
+                L.X = pointCloud[j];
+                L.observations = oVec;
+                L.d = descriptorsVec[j];
 
-            map.LM.push_back(L);
+                map.LM.push_back(L);
+            }
         }
-*/
+
+        cout << "   LM added: " << map.LM.size() - tempLM.size()
+             << "   LM total: " << map.LM.size() << endl;
+
+        time2 = clock();
+        dt = double(time2 - time1) / CLOCKS_PER_SEC;
+        cout << "i=" << i << "  LM time: " << dt << flush;
+
+        if (i > 10) // and i % 2 == 0)
+        {
+            map.improveTheMap();
+            time3 = clock();
+            dt = double(time3 - time2) / CLOCKS_PER_SEC;
+            cout << "   BA time: " << dt;
+        }
+        else
+        {
+            time3 = clock();
+        }
+
+        dt = double(time3 - time1) / CLOCKS_PER_SEC;
+        cout << "   Total time: " << dt << flush;
+
+        if (display)
+        {
+            cout << endl << "wait 2" << endl;
+            cv::waitKey();
+        }
     }
 
+    int progressiveNum = 14;
 
-    /*
-    step iniziale:
-        carica stereo pair 0, ricava i primi landmarks e inizializza trajectory con identity
-    for (i)
+    // save point cloud to text file
+    ofstream myfile3("cloudInit_" + to_string(progressiveNum) + ".txt");
+    if (myfile3.is_open())
     {
-        carica stereo pair i
-        usa immagine sx per calcolare l'odometry
-        calcola stereo matches
-        ricostruisci landmarks visibili (occhio al frame)
-        riproietta landmarks in memoria sulle immagini correnti (occhio al frame)
-        ricava due insiemi:
-            - landmarks in memoria non confermati
-            - nuovi landmarks
-        elimina landmarks non confermati e aggiungi i nuovi
+        for (int i = 0; i < map.LM.size(); i++)
+        {
+            myfile3 << map.LM[i].X << "\n";
+        }
+        myfile3.close();
+        cout << endl << endl << "Point cloud saved to file, dataset " << progressiveNum << endl;
     }
-    */
+
+    // save trajectory to text file
+    ofstream myfile4("trajectory_" + to_string(progressiveNum) + ".txt");
+    if (myfile4.is_open())
+    {
+        for (int i = 0; i < map.trajectory.size(); i++)
+        {
+            myfile4 << map.trajectory[i].trans() << "\n";
+        }
+        myfile4.close();
+        cout << "Trajectory saved to file, dataset " << progressiveNum << endl;
+    }
+
+    /*for (int i = 0; i < map.LM.size(); i++)
+    {
+        if (map.LM[i].observations.size() <= 5)
+        {
+            cout << i << endl;
+        }
+    }*/
+
+    end = clock();
+    dt = double(end - begin) / CLOCKS_PER_SEC;
+    cout << endl << "DONE. Total time to complete: " << dt << endl;
+
 }
 
+
+/* 5: erase on, new landmarks at each step
+ * 6: erase off, new landmarks at first step
+ * 7: erase off, new landmarks at each step
+ *
+ *
+ *
+ */
 
 int main()
 {
 
-    testOdometry();
+    //testOdometry();
 
-    //initializeMap();
+    initializeMap();
+
+    cout << endl;
 
 }
+
+
+/*
+int main( int argc, char** argv )
+{
+
+
+  cv::Mat img_1 = cv::imread("../datasets/dataset_odometry/view_left_0.png", 0);
+  cv::resize(img_1, img_1, cv::Size(0,0), 0.5, 0.5);
+
+  int minHessian = 1000;
+
+  cv::SurfFeatureDetector detector(1000, 2, 2, false, true);
+
+  vector<cv::KeyPoint> keypoints_1, keypoints_2;
+
+  detector.detect( img_1, keypoints_1 );
+
+  //-- Draw keypoints
+  cv::Mat img_keypoints_1;
+
+  cv::drawKeypoints( img_1, keypoints_1, img_keypoints_1, cv::Scalar::all(-1), cv::DrawMatchesFlags::DEFAULT );
+
+  //-- Show detected (drawn) keypoints
+  cv::imshow("Keypoints 1", img_keypoints_1 );
+
+  cout << keypoints_1.size() << endl;
+
+  cv::waitKey(0);
+
+  return 0;
+}
+*/
+
+

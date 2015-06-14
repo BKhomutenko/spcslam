@@ -17,21 +17,21 @@ class Transformation
 public:
     //FIXME
     Transformation() : mrot(ZERO, ZERO, ZERO), mtrans(ZERO, ZERO, ZERO) {}
-    
+
     Transformation(Vector3<T> trans, Vector3<T> rot) : mtrans(trans), mrot(rot) {}
 
     Transformation(const Vector3<T> & trans, const Quaternion<T> & qrot)
     : mtrans(trans), mrot(qrot.toRotationVector()) {}
-    
+
     Transformation(const T * const data) : mtrans(data), mrot(data + 3) {}
-    
+
     Transformation(T x, T y, T z, T rx, T ry, T rz)
     : mtrans(x, y, z), mrot(rx, ry, rz) {}
-    
+
     Transformation(T x, T y, T z, T qx, T qy, T qz, T qw)
     : mtrans(x, y, z), mrot(Quaternion<T>(qx, qy, qz, qw).toRotationVector()) {}
-    
-    
+
+
 
     void toRotTrans(Matrix3<T> & R, Vector3<T> & t) const
     {
@@ -55,7 +55,7 @@ public:
         res.mrot = qres.toRotationVector();
         return res;
     }
-    
+
     Transformation inverseCompose(const Transformation & transfo) const
     {
         Transformation res;
@@ -75,8 +75,8 @@ public:
 
     Vector3<T> & rot() { return mrot; }
 
-    Quaternion<T> rotQuat() const { return Quaternion<T>(mrot); } 
-    
+    Quaternion<T> rotQuat() const { return Quaternion<T>(mrot); }
+
     Matrix3<T> rotMat() const { return rotationMatrix<T>(mrot); }
 
     T * rotData() { return mrot.data(); }
@@ -97,7 +97,7 @@ public:
             v += mtrans;
         }
     }
-    
+
     void inverseTransform(const vector<Vector3<T>> & src, vector<Vector3<T>> & dst) const
     {
         dst.resize(src.size());
@@ -105,6 +105,12 @@ public:
         {
             dst[i] = src[i] - mtrans;
         }
+        inverseRotate(dst, dst);
+    }
+
+    void inverseTransform(const Vector3<T> & src, Vector3<T> & dst) const
+    {
+        dst = src - mtrans;
         inverseRotate(dst, dst);
     }
 
@@ -128,7 +134,14 @@ public:
             dst[i] = R * src[i];
         }
     }
-    
+
+    void inverseRotate(const Vector3<T> & src, Vector3<T> & dst) const
+    {
+        Matrix3<T> R = rotMat();
+        R.transposeInPlace();
+        dst = R * src;
+    }
+
     array<T, 6> toArray()
     {
         array<T, 6> res;
@@ -136,7 +149,7 @@ public:
         copy(rotData(), rotData() + 3, res.data() + 3);
         return res;
     }
-    
+
 private:
     Vector3<T> mrot;
     Vector3<T> mtrans;

@@ -52,6 +52,9 @@ struct LandMark
     //Feature descriptor
     Matrix<float, 64, 1> d;
 
+    //Feature angle
+    float angle;
+
     //All Vec6drealted measurements
     vector<Observation> observations;
 };
@@ -175,8 +178,9 @@ public:
             ICamera & c1, ICamera & c2)
             : stereo(p1, p2, c1, c2)
     {
-        Extractor extr(1000, 2, 2, false, true);
+        Extractor extr(1500, 2, 2, false, true);
         extractor = extr;
+        matcher.initStereoBins(stereo);
     }
 //    virtual ~StereoCartography () { LM.clear(); trajectory.clear(); }
 
@@ -192,7 +196,7 @@ public:
     //performs optimization of all landmark positions wrt the actual path
     void improveTheMap();
 
-    Transformation<double> estimateOdometry(const vector<Feature> & featureVec);
+    Transformation<double> estimateOdometry(const vector<Feature> & featureVec) const;
 
     //the library of all landmarks
     //to be replaced in the future with somth smarter than a vector

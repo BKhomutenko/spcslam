@@ -22,11 +22,16 @@ struct Feature
     Feature(const Vector2d & p, const Matrix<float,64,1> & d)
                 : pt(p) , desc(d) {}
 
+    Feature(const Vector2d & p, const Matrix<float,64,1> & d, float size, float angle)
+                : pt(p) , desc(d), size(size), angle(angle) {}
+
     Feature(double x, double y, float * d)
                 : pt(x, y) , desc((float *) d) {}
 
     Feature(double x, double y, float * d, float size, float angle)
                 : pt(x, y) , desc((float *) d), size(size), angle(angle) {}
+
+    Feature() {}
 };
 
 class Extractor

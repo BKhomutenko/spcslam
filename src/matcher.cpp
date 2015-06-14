@@ -13,13 +13,13 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Vector2d;
 
-void Matcher::bruteForce(const vector<Feature> & fVec1,
-                         const vector<Feature> & fVec2,
-                         vector<int> & matches)
+void Matcher::bruteForce(const vector<Feature> & featuresVec1,
+                         const vector<Feature> & featuresVec2,
+                         vector<int> & matches) const
 {
 
-    const int N1 = fVec1.size();
-    const int N2 = fVec2.size();
+    const int N1 = featuresVec1.size();
+    const int N2 = featuresVec2.size();
 
     matches.resize(N1);
 
@@ -31,7 +31,7 @@ void Matcher::bruteForce(const vector<Feature> & fVec1,
 
         for (int j = 0; j < N2 ; j++)
         {
-            double dist = (fVec1[i].desc - fVec2[j].desc).norm();
+            double dist = (featuresVec1[i].desc - featuresVec2[j].desc).norm();
 
             if (dist < bestDist)
             {
@@ -52,17 +52,17 @@ void Matcher::bruteForce(const vector<Feature> & fVec1,
 
 }
 
-void Matcher::bruteForceOneToOne(const vector<Feature> & fVec1,
-                                 const vector<Feature> & fVec2,
-                                 vector<int> & matches)
+void Matcher::bruteForceOneToOne(const vector<Feature> & featuresVec1,
+                                 const vector<Feature> & featuresVec2,
+                                 vector<int> & matches) const
 {
-    const int N1 = fVec1.size();
-    const int N2 = fVec2.size();
+    const int N1 = featuresVec1.size();
+    const int N2 = featuresVec2.size();
 
     vector<int> matches2(N2, -1);
 
-    bruteForce(fVec1, fVec2, matches);
-    bruteForce(fVec2, fVec1, matches2);
+    bruteForce(featuresVec1, featuresVec2, matches);
+    bruteForce(featuresVec2, featuresVec1, matches2);
 
     for (int i = 0; i < N1; i++)
     {
@@ -71,6 +71,181 @@ void Matcher::bruteForceOneToOne(const vector<Feature> & fVec1,
             matches[i] = -1;
         }
     }
+}
+
+void Matcher::stereoMatch(const vector<Feature> & featuresVec1,
+                          const vector<Feature> & featuresVec2,
+			  vector<int> & matches) const
+{
+
+    const bool debug = false;
+
+    const int N1 = featuresVec1.size();
+    const int N2 = featuresVec2.size();
+
+    const double distTh = 0.2;
+
+    vector<double> bestDists(N1, distTh);
+
+    matches.resize(N1);
+
+    for (int i = 0; i < N1; i++) { matches[i] = -1; }
+
+    for (int j = 0; j < N2; j++)
+    {
+        double bestDist = distTh;
+        int iTempMatch = 0;
+
+        //cout << endl << "j=" << j << endl;
+
+        if (debug)
+        {
+            int binDiff = binMapL(round(featuresVec1[j].pt(1)), round(featuresVec1[j].pt(0))) -
+                          binMapR(round(featuresVec2[j].pt(1)), round(featuresVec2[j].pt(0)));
+            if (binDiff != 0)
+                cout << "j=" << j << " binDiff=" << binDiff << endl;
+        }
+
+        for (int i = 0; i < N1 ; i++)
+        {
+            //cout << endl << "i=" << i << endl;
+            if (abs(binMapL(round(featuresVec1[i].pt(1)), round(featuresVec1[i].pt(0))) -
+                    binMapR(round(featuresVec2[j].pt(1)), round(featuresVec2[j].pt(0)))) <= 1)
+            {
+                double dist = (featuresVec1[i].desc - featuresVec2[j].desc).norm();
+
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    iTempMatch = i;
+                    //cout << "bestDist=" << bestDist << endl;
+                }
+            }
+        }
+        if (bestDist < bestDists[iTempMatch])
+        {
+            matches[iTempMatch] = j;
+            bestDists[iTempMatch] = bestDist;
+        }
+    }
+
+    /*for (int i = 0; i < matches.size(); i++)
+    {
+        cout << " i=" << i << " bestDists[i]=" << bestDists[i] << endl;
+    }*/
+
+}
+
+void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
+		               const vector<Feature> & featuresVec2,
+		               vector<int> & matches) const
+{
+
+    double radius = 3; // search radius in pixels
+
+    const int N1 = featuresVec1.size();
+    const int N2 = featuresVec2.size();
+
+    matches.resize(N1);
+
+    vector<int> matches1(N1, -1);
+
+    for (int i = 0; i < N1; i++)
+    {
+        double bestScore = 1000000;
+        int bestMatch = -1;
+        for (int j = 0; j < N2; j++)
+        {
+            if ((featuresVec1.at(i).pt - featuresVec2.at(j).pt).norm() < radius)
+            {
+                double tempScore = (featuresVec1.at(i).desc - featuresVec2.at(j).desc).norm();
+                if (tempScore < bestScore)
+                {
+                    bestMatch = j;
+                    bestScore = tempScore;
+                }
+            }
+        }
+        matches1.at(i) = bestMatch;
+    }
+
+    vector<int> matches2(N2, -1);
+
+    for (int i = 0; i < N2; i++)
+    {
+        double bestScore = 1000000;
+        int bestMatch = -1;
+        for (int j = 0; j < N1; j++)
+        {
+            if ((featuresVec1.at(j).pt - featuresVec2.at(i).pt).norm() < radius)
+            {
+                double tempScore = (featuresVec1.at(j).desc - featuresVec2.at(i).desc).norm();
+                if (tempScore < bestScore)
+                {
+                    bestMatch = j;
+                    bestScore = tempScore;
+                }
+            }
+        }
+        matches2.at(i) = bestMatch;
+    }
+
+    for (int i = 0; i < N1; i++)
+    {
+        if ((matches1.at(i) > -1) && (matches2.at(matches1.at(i)) == i))
+        {
+            matches.at(i) = matches1.at(i);
+        }
+        else
+        {
+            matches[i] = -1;
+        }
+    }
+
+
+/*    vector<double> bestScores(N1, 2);
+
+    matches.resize(N1);
+
+    for (int i = 0; i < N1; i++)
+    {
+        matches[i] = -1;
+    }
+
+    for (int j = 0; j < N2; j++)
+    {
+        double bestScore = 1000000;
+        int iTempMatch = 0;
+
+        double alfa = 1;
+        double beta = 1;
+
+        for (int i = 0; i < N1 ; i++)
+        {
+
+            double descDist = (featuresVec1[i].desc - featuresVec2[j].desc).norm();
+            double spaceDist = (featuresVec1[i].pt - featuresVec2[j].pt).norm();
+            double score = alfa * descDist + beta * spaceDist;
+
+            if (score < bestScore)
+            {
+                bestScore = score;
+                iTempMatch = i;
+            }
+        }
+        if (bestScore < bestScores[iTempMatch])
+        {
+            matches[iTempMatch] = j;
+            bestScores[iTempMatch] = bestScore;
+        }
+    }
+
+    /*for (int i = 0; i < N1; i++)
+    {
+        cout << " i=" << i << " bestScores[i]=" << bestScores[i] << endl;
+    }
+    */
+
 }
 
 void Matcher::initStereoBins(const StereoSystem & stereo)
@@ -175,118 +350,72 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
     }
 }
 
-void Matcher::stereoMatch(const vector<Feature> & fVec1,
-                          const vector<Feature> & fVec2,
-			  vector<int> & matches)
+void Matcher::computeMaps(const StereoSystem & stereo)
 {
 
-    const bool debug = false;
+    const double pi = std::atan(1)*4;
 
-    const int N1 = fVec1.size();
-    const int N2 = fVec2.size();
+    alfaMap1.resize(stereo.cam1->height, stereo.cam1->width);
+    betaMap1.resize(stereo.cam1->height, stereo.cam1->width);
+    alfaMap2.resize(stereo.cam2->height, stereo.cam2->width);
+    betaMap2.resize(stereo.cam2->height, stereo.cam2->width);
 
-    const double distTh = 0.2;
+    Matrix3d R, RSigma, RPhi, RTot;
 
-    vector<double> bestDists(N1, distTh);
+    // R is rotation matrix 1 -> 2
+    Transformation<double> Tcam1cam2 = stereo.TbaseCam1.inverseCompose(stereo.TbaseCam2);
+    R = Tcam1cam2.rotMat();
 
-    matches.resize(N1);
+    // t: translation vector from 1 -> 2 (reference frame 1)
+    Eigen::Vector3d t = Tcam1cam2.trans();
 
-    for (int i = 0; i < N1; i++) { matches[i] = -1; }
+    double sigma = std::atan2(-t(1), std::sqrt(t(0)*t(0) + t(2)*t(2)));
+    double phi = std::atan2(t(2), t(0));
 
-    for (int j = 0; j < N2; j++)
+    Eigen::Vector3d vPhi(0, phi, 0);
+    Eigen::Vector3d vSigma(0, 0, sigma);
+
+    RPhi = rotationMatrix(vPhi);
+    RSigma = rotationMatrix(vSigma);
+
+    RTot = RSigma*RPhi;
+
+    Eigen::Vector2d p;
+    Eigen::Vector3d v;
+
+    // compute maps for camera 1
+    for (int i = 0; i < stereo.cam1->height; i++)
     {
-        double bestDist = distTh;
-        int iTempMatch = 0;
-
-        //cout << endl << "j=" << j << endl;
-
-        if (debug)
+        for (int j = 0; j < stereo.cam1->width; j++)
         {
-            int binDiff = binMapL(round(fVec1[j].pt(1)), round(fVec1[j].pt(0))) -
-                          binMapR(round(fVec2[j].pt(1)), round(fVec2[j].pt(0)));
-            if (binDiff != 0)
-                cout << "j=" << j << " binDiff=" << binDiff << endl;
-        }
+            p << j, i;
+            stereo.cam2->reconstructPoint(p, v);
+            Eigen::Vector3d v2;
+            v2 = RTot * v;
 
-        for (int i = 0; i < N1 ; i++)
-        {
-            //cout << endl << "i=" << i << endl;
-            if (abs(binMapL(round(fVec1[i].pt(1)), round(fVec1[i].pt(0))) -
-                    binMapR(round(fVec2[j].pt(1)), round(fVec2[j].pt(0)))) <= 1)
-            {
-                double dist = (fVec1[i].desc - fVec2[j].desc).norm();
+            double alfa = std::atan2(v2(1), v2(2))*180/pi;
+            double beta = std::atan2(v2(0), v2(2))*180/pi;
 
-                if (dist < bestDist)
-                {
-                    bestDist = dist;
-                    iTempMatch = i;
-                    //cout << "bestDist=" << bestDist << endl;
-                }
-            }
-        }
-        if (bestDist < bestDists[iTempMatch])
-        {
-            matches[iTempMatch] = j;
-            bestDists[iTempMatch] = bestDist;
+            alfaMap1(i, j) = alfa;
+            betaMap1(i, j) = beta;
         }
     }
 
-    /*for (int i = 0; i < matches.size(); i++)
+    // compute maps for camera 2
+    for (int i = 0; i < stereo.cam2->height; i++)
     {
-        cout << " i=" << i << " bestDists[i]=" << bestDists[i] << endl;
-    }*/
-
-}
-
-void Matcher::matchReprojected(const vector<Feature> & fVec1,
-		               const vector<Feature> & fVec2,
-		               vector<int> & matches)
-{
-
-    const int N1 = fVec1.size();
-    const int N2 = fVec2.size();
-
-    vector<double> bestScores(N1, 2);
-
-    matches.resize(N1);
-
-    for (int i = 0; i < N1; i++)
-    {
-        matches[i] = -1;
-    }
-
-    for (int j = 0; j < N2; j++)
-    {
-        double bestScore = 2;
-        int iTempMatch = 0;
-
-        double alfa = 1;
-        double beta = 1;
-
-        for (int i = 0; i < N1 ; i++)
+        for (int j = 0; j < stereo.cam2->width; j++)
         {
+            p << j, i;
+            stereo.cam1->reconstructPoint(p, v);
+            Eigen::Vector3d v2;
+            v2 = RTot * R * v;
 
-            double descDist = (fVec1[i].desc - fVec2[j].desc).norm();
-            double spaceDist = (fVec1[i].pt - fVec2[j].pt).norm();
-            double score = alfa * descDist + beta * spaceDist;
+            double alfa = std::atan2(v2(1), v2(2))*180/pi;
+            double beta = std::atan2(v2(0), v2(2))*180/pi;
 
-            if (score < bestScore)
-            {
-                bestScore = score;
-                iTempMatch = i;
-            }
-        }
-        if (bestScore < bestScores[iTempMatch])
-        {
-            matches[iTempMatch] = j;
-            bestScores[iTempMatch] = bestScore;
+            alfaMap2(i, j) = alfa;
+            betaMap2(i, j) = beta;
         }
     }
-
-    /*for (int i = 0; i < N1; i++)
-    {
-        cout << " i=" << i << " bestScores[i]=" << bestScores[i] << endl;
-    }
-    */
-
 }
