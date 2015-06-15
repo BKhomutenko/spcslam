@@ -216,7 +216,8 @@ void testOdometry()
 void initializeMap()
 {
 
-    int Nsteps = 600;
+    int Nsteps = 130;
+    int firstImage = 385;
 
     bool display = false;
 
@@ -236,7 +237,7 @@ void initializeMap()
 
     cv::Scalar color1(255), color2(255);
 
-    clock_t begin, end, time1, time2, time3;
+    clock_t begin, end, time1, time2, time3, time4;
     double dt;
 
     begin = clock();
@@ -246,16 +247,25 @@ void initializeMap()
 
         time1 = clock();
         // acquire images
-        string imageFile1 = datasetPath + prefix1 + to_string(i) + extension;
-        string imageFile2 = datasetPath + prefix2 + to_string(i) + extension;
+        string imageFile1 = datasetPath + prefix1 + to_string(i + firstImage) + extension;
+        string imageFile2 = datasetPath + prefix2 + to_string(i + firstImage) + extension;
         cv::Mat image1 = cv::imread(imageFile1, 0);
         cv::Mat image2 = cv::imread(imageFile2, 0);
+
+        time4 = clock();
+        dt = double(time4 - time1) / CLOCKS_PER_SEC;
+        cout << endl << "i=" << i << "  Time to open images: " << dt << flush;
 
         // extract features
         vector<Feature> featuresVec1, featuresVec2,
                         featuresVecC1, featuresVecC2, featuresLM1, featuresLM2;
         map.extractor(image1, featuresVec1);
         map.extractor(image2, featuresVec2);
+
+        time4 = clock();
+        dt = double(time4 - time1) / CLOCKS_PER_SEC;
+        cout << "   Time to extract features: " << dt << endl;
+
         int N1 = featuresVec1.size();
         int N2 = featuresVec2.size();
 
@@ -282,7 +292,7 @@ void initializeMap()
             int N = map.LM.size();
             //cout << "map size " << N << endl;
             Transformation<double> newPose = map.estimateOdometry(featuresVec1);
-            cout << endl << endl << "i=" << i << "  Odometry: " << newPose << endl;
+            cout << endl << "i=" << i << "  Odometry: " << newPose << endl;
             map.trajectory.push_back(newPose);
 
             // project landmarks on image planes
@@ -318,8 +328,8 @@ void initializeMap()
 
             // match reprojections with extracted features
             vector<int> matchesR1, matchesR2;
-            map.matcher.matchReprojected(featuresLM1, featuresVec1, matchesR1);
-            map.matcher.matchReprojected(featuresLM2, featuresVec2, matchesR2);
+            map.matcher.matchReprojected(featuresLM1, featuresVec1, matchesR1, 5);
+            map.matcher.matchReprojected(featuresLM2, featuresVec2, matchesR2, 5);
 
             /*
             cout << matchesR1.size() << endl;
@@ -343,6 +353,7 @@ void initializeMap()
                 {
                     Observation o1(featuresVec1[matchesR1[j]].pt, i, CameraID::LEFT);
                     map.LM[correspondence[j]].observations.push_back(o1);
+                    map.LM[correspondence[j]].d = featuresVec1[matchesR1[j]].desc;
                 }
                 if (matchesR2[j] != -1)
                 {
@@ -411,7 +422,7 @@ void initializeMap()
         }
 
         vector<int> matches;
-        map.matcher.stereoMatch(featuresVecC1, featuresVecC2, matches);
+        map.matcher.stereoMatch_2(featuresVecC1, featuresVecC2, matches);
 
         // create vectors of 2D points and descriptors from matched features
         vector<Eigen::Vector2d> pointsVec1, pointsVec2;
@@ -460,7 +471,7 @@ void initializeMap()
         dt = double(time2 - time1) / CLOCKS_PER_SEC;
         cout << "i=" << i << "  LM time: " << dt << flush;
 
-        if (i > 10) // and i % 2 == 0)
+        if (i > 5) // and i % 2 == 0)
         {
             map.improveTheMap();
             time3 = clock();
@@ -473,7 +484,7 @@ void initializeMap()
         }
 
         dt = double(time3 - time1) / CLOCKS_PER_SEC;
-        cout << "   Total time: " << dt << flush;
+        cout << "   Total time: " << dt << endl;
 
         if (display)
         {
@@ -482,10 +493,10 @@ void initializeMap()
         }
     }
 
-    int progressiveNum = 14;
+    int progressiveNum = 52;
 
     // save point cloud to text file
-    ofstream myfile3("cloudInit_" + to_string(progressiveNum) + ".txt");
+    ofstream myfile3("../../VM_shared/cloudInit_" + to_string(progressiveNum) + ".txt");
     if (myfile3.is_open())
     {
         for (int i = 0; i < map.LM.size(); i++)
@@ -493,11 +504,11 @@ void initializeMap()
             myfile3 << map.LM[i].X << "\n";
         }
         myfile3.close();
-        cout << endl << endl << "Point cloud saved to file, dataset " << progressiveNum << endl;
+        cout << endl << "Point cloud saved to file, dataset " << progressiveNum << endl;
     }
 
     // save trajectory to text file
-    ofstream myfile4("trajectory_" + to_string(progressiveNum) + ".txt");
+    ofstream myfile4("../../VM_shared/trajectory_" + to_string(progressiveNum) + ".txt");
     if (myfile4.is_open())
     {
         for (int i = 0; i < map.trajectory.size(); i++)

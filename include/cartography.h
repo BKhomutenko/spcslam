@@ -178,9 +178,10 @@ public:
             ICamera & c1, ICamera & c2)
             : stereo(p1, p2, c1, c2)
     {
-        Extractor extr(1500, 2, 2, false, true);
+        Extractor extr(4000, 1, 2, false, true);
         extractor = extr;
         matcher.initStereoBins(stereo);
+        matcher.computeMaps(stereo);
     }
 //    virtual ~StereoCartography () { LM.clear(); trajectory.clear(); }
 
@@ -197,6 +198,8 @@ public:
     void improveTheMap();
 
     Transformation<double> estimateOdometry(const vector<Feature> & featureVec) const;
+
+    Transformation<double> estimateOdometry_2(const vector<Feature> & featureVec) const;
 
     //the library of all landmarks
     //to be replaced in the future with somth smarter than a vector

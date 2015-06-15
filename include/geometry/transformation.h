@@ -33,6 +33,12 @@ public:
 
 
 
+    void setParam(Vector3<T> & newTrans, Vector3<T> & newRot)
+    {
+        mtrans = newTrans;
+        mrot = newRot;
+    }
+
     void toRotTrans(Matrix3<T> & R, Vector3<T> & t) const
     {
         t = mtrans;

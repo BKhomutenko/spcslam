@@ -93,7 +93,7 @@ void testBruteForce()
     // for keypoint angle
     uniform_real_distribution<float> pA(0, 360);
 
-    vector<Feature> fVec1, fVec2;
+    vector<Feature> featuresVec1, featuresVec2;
 
     for (int i = 0; i < N; i++)
     {
@@ -110,18 +110,18 @@ void testBruteForce()
         double x = pX(generator);
         double y = pY(generator);
         Feature f1(x, y, desc, s, a);
-        fVec1.push_back(f1);
+        featuresVec1.push_back(f1);
 
         x = pX(generator);
         y = pY(generator);
         Feature f2(x, y, desc, s, a);
-        fVec2.push_back(f2);
+        featuresVec2.push_back(f2);
     }
 
     vector<int> matches(N, -1);
 
     Matcher matcher;
-    matcher.bruteForceOneToOne(fVec1, fVec2, matches);
+    matcher.bruteForceOneToOne(featuresVec1, featuresVec2, matches);
 
     int errors = 0;
     for (int i = 0; i < N; i++)
@@ -173,7 +173,7 @@ void testStereoMatch()
     stereo.projectPointCloud(pt3Vec, pt2Vec1, pt2Vec2);
 
     // create feature vectors
-    vector<Feature> fVec1, fVec2;
+    vector<Feature> featuresVec1, featuresVec2;
     // for the left camera
     for (int i = 0; i < N; i++)
     {
@@ -181,7 +181,7 @@ void testStereoMatch()
         Feature f(point, cloud[i].desc);
         f.size = cloud[i].size;
         f.angle = cloud[i].angle;
-        fVec1.push_back(f);
+        featuresVec1.push_back(f);
         //cout << endl << "left camera projection: " << point << endl << endl;
     }
     // for the right camera
@@ -191,7 +191,7 @@ void testStereoMatch()
         Feature f(point, cloud[i].desc);
         f.size = cloud[i].size;
         f.angle = cloud[i].angle;
-        fVec2.push_back(f);
+        featuresVec2.push_back(f);
         //cout << endl << "right camera projection: " << point << endl << endl;
     }
 
@@ -206,7 +206,7 @@ void testStereoMatch()
 
     Matcher matcher;
     matcher.initStereoBins(stereo);
-    matcher.stereoMatch(fVec1, fVec2, matches);
+    matcher.stereoMatch(featuresVec1, featuresVec2, matches);
 
     int errors = 0;
     for (int i = 0; i < N; i++)
@@ -248,7 +248,7 @@ void testMatchReprojected()
     // for reprojection displacement
     uniform_real_distribution<float> pR(-10, 10);
 
-    vector<Feature> fVec1, fVec2;
+    vector<Feature> featuresVec1, featuresVec2;
 
     for (int i = 0; i < N; i++)
     {
@@ -265,18 +265,18 @@ void testMatchReprojected()
         double x = pX(generator);
         double y = pY(generator);
         Feature f1(x, y, desc, s, a);
-        fVec1.push_back(f1);
+        featuresVec1.push_back(f1);
 
         double rX = pR(generator);
         double rY = pR(generator);
         Feature f2(x+rX, y+rY, desc, s, a);
-        fVec2.push_back(f2);
+        featuresVec2.push_back(f2);
     }
 
     vector<int> matches(N, -1);
 
     Matcher matcher;
-    matcher.bruteForceOneToOne(fVec1, fVec2, matches);
+    matcher.bruteForceOneToOne(featuresVec1, featuresVec2, matches);
 
     int errors = 0;
     for (int i = 0; i < N; i++)
@@ -364,14 +364,14 @@ void displayStereoMatch(const StereoSystem & stereo)
     cv::Mat img1 = cv::imread("../datasets/dataset_odometry/view_left_446.png", 0);
     cv::Mat img2 = cv::imread("../datasets/dataset_odometry/view_right_446.png", 0);
 
-    vector<Feature> fVec1, fVec2;
+    vector<Feature> featuresVec1, featuresVec2;
     Extractor extr(1000, 2, 2, false, true);
 
-    extr(img1, fVec1);
-    extr(img2, fVec2);
+    extr(img1, featuresVec1);
+    extr(img2, featuresVec2);
 
-    const int N1 = fVec1.size();
-    const int N2 = fVec2.size();
+    const int N1 = featuresVec1.size();
+    const int N2 = featuresVec2.size();
 
     cout << endl << "N1=" << N1 << " N2=" << N2 << endl;
 
@@ -379,27 +379,28 @@ void displayStereoMatch(const StereoSystem & stereo)
 
     Matcher matcher;
     matcher.initStereoBins(stereo);
+    matcher.computeMaps(stereo);
 
-    matcher.stereoMatch(fVec1, fVec2, matches);
+    matcher.stereoMatch_2(featuresVec1, featuresVec2, matches);
 
     for (int i = 0; i < N1; i++)
     {
-        cout << "match for " << i << ": " << matches[i] << endl;
+        //cout << "match for " << i << ": " << matches[i] << endl;
     }
 
     vector<cv::KeyPoint> keypoints1;
     for (int i = 0; i < N1; i++)
     {
-        cv::KeyPoint kp(fVec1[i].pt(0)*resizeRatio, fVec1[i].pt(1)*resizeRatio, 1);
-        cout << "i=" << i << " size=" << fVec1[i].size << " angle=" << fVec1[i].angle << endl;
+        cv::KeyPoint kp(featuresVec1[i].pt(0)*resizeRatio, featuresVec1[i].pt(1)*resizeRatio, 1);
+        //cout << "i=" << i << " size=" << featuresVec1[i].size << " angle=" << featuresVec1[i].angle << endl;
         keypoints1.push_back(kp);
     }
 
     vector<cv::KeyPoint> keypoints2;
     for (int i = 0; i < N2; i++)
     {
-        cv::KeyPoint kp(fVec2[i].pt(0)*resizeRatio, fVec2[i].pt(1)*resizeRatio, 1);
-        cout << "i=" << i << " size=" << fVec2[i].size << " angle=" << fVec2[i].angle << endl;
+        cv::KeyPoint kp(featuresVec2[i].pt(0)*resizeRatio, featuresVec2[i].pt(1)*resizeRatio, 1);
+        //cout << "i=" << i << " size=" << featuresVec2[i].size << " angle=" << featuresVec2[i].angle << endl;
         keypoints2.push_back(kp);
     }
 
@@ -437,33 +438,34 @@ void displayStereoMatch_2(const StereoSystem & stereo)
     cv::Mat imgL = cv::imread("../datasets/dataset_odometry/view_left_446.png", 0);
     cv::Mat imgR = cv::imread("../datasets/dataset_odometry/view_right_446.png", 0);
 
-    vector<Feature> featuresVecL, featuresVecR;
+    vector<Feature> featuresVec1, featuresVec2;
     Extractor extr(1000, 2, 2, false, true);
 
-    extr(imgL, featuresVecL);
-    extr(imgR, featuresVecR);
+    extr(imgL, featuresVec1);
+    extr(imgR, featuresVec2);
 
-    const int NL = featuresVecL.size();
-    const int NR = featuresVecR.size();
+    const int NL = featuresVec1.size();
+    const int NR = featuresVec2.size();
     cout << endl << "NL=" << NL << " NR=" << NR << endl;
 
     vector<int> matches(NL, -1);
 
     Matcher matcher;
     matcher.initStereoBins(stereo);
-    matcher.stereoMatch(featuresVecL, featuresVecR, matches);
+    matcher.computeMaps(stereo);
+    matcher.stereoMatch_2(featuresVec1, featuresVec2, matches);
 
     vector<cv::KeyPoint> keypointsL;
     for (int i = 0; i < NL; i++)
     {
-        cv::KeyPoint kp(featuresVecL[i].pt(0)*resizeRatio, featuresVecL[i].pt(1)*resizeRatio, 1);
+        cv::KeyPoint kp(featuresVec1[i].pt(0)*resizeRatio, featuresVec1[i].pt(1)*resizeRatio, 1);
         keypointsL.push_back(kp);
     }
 
     vector<cv::KeyPoint> keypointsR;
     for (int i = 0; i < NR; i++)
     {
-        cv::KeyPoint kp(featuresVecR[i].pt(0)*resizeRatio, featuresVecR[i].pt(1)*resizeRatio, 1);
+        cv::KeyPoint kp(featuresVec2[i].pt(0)*resizeRatio, featuresVec2[i].pt(1)*resizeRatio, 1);
         keypointsR.push_back(kp);
     }
 
@@ -473,7 +475,7 @@ void displayStereoMatch_2(const StereoSystem & stereo)
         if (matches[i] != -1)
         {
             //cout << "i=" << i << " matches[i]=" << matches[i] << endl;
-            cv::DMatch m(i, matches[i], 0);
+            cv::DMatch m(matches[i], i, 0);
             mD.push_back(m);
         }
     }
@@ -495,8 +497,19 @@ void displayStereoMatch_2(const StereoSystem & stereo)
         int qu = mD[i].queryIdx;
         cv::DMatch dm(0, 0, 1);
         mD2.push_back(dm);
-        kL.push_back(keypointsL[qu]);
-        kR.push_back(keypointsR[tr]);
+        kL.push_back(keypointsL[tr]);
+        kR.push_back(keypointsR[qu]);
+
+        /*cout << "P1 (" << featuresVec1[tr].pt(0) << "," << featuresVec1[tr].pt(1) << ")   P2 ("
+             << featuresVec2[qu].pt(0) << "," << featuresVec2[qu].pt(1) << ")   beta1: "
+             << matcher.betaMap1(round(featuresVec1[tr].pt(1)), round(featuresVec1[tr].pt(0)))
+             << "   beta2: " << matcher.betaMap2(round(featuresVec2[qu].pt(1)), round(featuresVec2[qu].pt(0)))
+             << endl;*/
+        cout << "P1 (" << featuresVec1[tr].pt(0) << "," << featuresVec1[tr].pt(1) << ")   P2 ("
+             << featuresVec2[qu].pt(0) << "," << featuresVec2[qu].pt(1) << ")   alfa1: "
+             << matcher.alfaMap1(round(featuresVec1[tr].pt(1)), round(featuresVec1[tr].pt(0)))
+             << "   alfa2: " << matcher.alfaMap2(round(featuresVec2[qu].pt(1)), round(featuresVec2[qu].pt(0)))
+             << endl;
 
         cv::Mat imgMatches;
         cv::drawMatches(imgL, kL, imgR, kR, mD2, imgMatches);
@@ -682,10 +695,10 @@ void testDistancesBF()
         cv::drawMatches(img1, k1, img2, k2, mD2, imgMatches);
         cv::imshow("Matches", imgMatches);
 
-        cout << i << "/" << mD.size() << "  distance: " << mD[i].distance
+        /*cout << i << "/" << mD.size() << "  distance: " << mD[i].distance
              << "  size 1: " << featuresVec1[tr].size << " size 2: "
              << featuresVec2[qu].size << "  angle diff: "
-             << abs(featuresVec1[tr].angle-featuresVec2[qu].angle) << endl;
+             << abs(featuresVec1[tr].angle-featuresVec2[qu].angle) << endl;*/
 
         cv::waitKey();
     }
@@ -710,9 +723,11 @@ int main(int argc, char** argv)
 
     // displayBins(map.stereo);
 
+    displayStereoMatch_2(map.stereo);
+
     // displayBruteForce();
 
-    testDistancesBF();
+    // testDistancesBF();
 
     return 0;
 }

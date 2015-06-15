@@ -305,7 +305,7 @@ void Odometry::Ransac()
 
     srand(0);
 
-    const int numIterMax = 1000;
+    const int numIterMax = 50;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -356,7 +356,7 @@ void Odometry::Ransac()
         for (unsigned int i = 0; i < numPoints; i++)
         {
             Vector2d err = observationVec[i] - projVec[i];
-            if (err.norm() < 3)
+            if (err.norm() < 2)
             {
                 currentInlierMask[i] = true;
                 countInliers++;
@@ -426,7 +426,7 @@ Transformation<double> StereoCartography::estimateOdometry(const vector<Feature>
         Eigen::Vector3d Xb, Xc;
         trajectory.back().inverseTransform(LM[k].X, Xb);
         stereo.TbaseCam1.inverseTransform(Xb, Xc);
-        if (Xc(2) > 0)
+        if (Xc(2) > 1 and LM[k].observations.back().poseIdx == trajectory.size()-1)
         {
             lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[k].d));
             numActive++;
@@ -456,6 +456,68 @@ Transformation<double> StereoCartography::estimateOdometry(const vector<Feature>
     return odometry.TorigBase;
 }
 
+Transformation<double> StereoCartography::estimateOdometry_2(const vector<Feature> & featureVec) const
+{
+    //Matching
+
+    int numLandmarks = LM.size();
+    int maxActive = 300;
+    int numActive = 0;
+
+    // create motion hypothesis
+    Transformation<double> Tdelta;
+    if (trajectory.size() > 1)
+    {
+        Transformation<double> tn = trajectory[trajectory.size()-2].inverseCompose(trajectory.back());
+        Tdelta.setParam(tn.trans(), tn.rot());
+    }
+    Transformation<double> Th = trajectory.back().compose(Tdelta);
+
+    // predict position of the landmarks based on motion hypothesis
+
+    vector<int> correspondence;
+    vector<Feature> lmFeatureVec;
+//    cout << "ca va" << endl;
+    int k = numLandmarks;
+    while (k > 0 and numActive < maxActive)
+    {
+        k--;
+        if (LM[k].observations.back().poseIdx == trajectory.size()-1)
+        {
+            Eigen::Vector3d Xb, Xc;
+            Th.inverseTransform(LM[k].X, Xb);
+            stereo.TbaseCam1.inverseTransform(Xb, Xc);
+            if (Xc(2) > 0.5)
+            {
+                Eigen::Vector2d pos;
+                bool res = stereo.cam1->projectPoint(Xc, pos);
+                lmFeatureVec.push_back(Feature(pos, LM[k].d));
+                numActive++;
+                correspondence.push_back(k);
+            }
+        }
+    }
+
+    vector<int> matchVec;
+    matcher.matchReprojected(lmFeatureVec, featureVec, matchVec, 20);
+
+    Odometry odometry(trajectory.back(), stereo.TbaseCam1, stereo.cam1);
+//    cout << "ca va" << endl;
+    for (unsigned int i = 0; i < numActive; i++)
+    {
+        if (matchVec[i] == -1) continue;
+        odometry.observationVec.push_back(featureVec[matchVec[i]].pt);
+        odometry.cloud.push_back(LM[correspondence[i]].X);
+    }
+//    cout << "cloud : " << odometry.cloud.size() << endl;
+    //RANSAC
+    odometry.Ransac();
+//    cout << odometry.TorigBase << endl;
+    //Final transformation computation
+    odometry.computeTransformation();
+//    cout << odometry.TorigBase << endl;
+    return odometry.TorigBase;
+}
 
 
 

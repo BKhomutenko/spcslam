@@ -17,6 +17,12 @@ class Matcher
 public:
 
     double bfDistTh = 0.15;
+    double stereoDistTh = 0.25;
+    double reproDistTh = 0.5;
+
+    double alfaTolerance = 0.4; //degrees
+    double betaTolerance = 0.4; //degrees
+
     double binDelta = 1; //degrees
 
     Eigen::MatrixXi binMapL;
@@ -27,21 +33,25 @@ public:
     Eigen::MatrixXd alfaMap2;
     Eigen::MatrixXd betaMap2;
 
-    void bruteForce(const vector<Feature> & fVec1,
-                    const vector<Feature> & fVec2,
+    void bruteForce(const vector<Feature> & featuresVec1,
+                    const vector<Feature> & featuresVec2,
                     vector<int> & matches) const;
 
-    void bruteForceOneToOne(const vector<Feature> & fVec1,
-                            const vector<Feature> & fVec2,
+    void bruteForceOneToOne(const vector<Feature> & featuresVec1,
+                            const vector<Feature> & featuresVec2,
                             vector<int> & matches) const;
 
-    void stereoMatch(const vector<Feature> & fVec1,
-                     const vector<Feature> & fVec2,
+    void stereoMatch(const vector<Feature> & featuresVec1,
+                     const vector<Feature> & featuresVec2,
                      vector<int> & matches) const;
 
-    void matchReprojected(const vector<Feature> & fVec1,
-                          const vector<Feature> & fVec2,
-                          vector<int> & matches) const;
+    void stereoMatch_2(const vector<Feature> & featuresVec1,
+                     const vector<Feature> & featuresVec2,
+                     vector<int> & matches) const;
+
+    void matchReprojected(const vector<Feature> & featuresVec1,
+                          const vector<Feature> & featuresVec2,
+                          vector<int> & matches, double radius) const;
 
     void initStereoBins(const StereoSystem & stereo);
 

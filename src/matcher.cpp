@@ -136,12 +136,83 @@ void Matcher::stereoMatch(const vector<Feature> & featuresVec1,
 
 }
 
-void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
-		               const vector<Feature> & featuresVec2,
-		               vector<int> & matches) const
+void Matcher::stereoMatch_2(const vector<Feature> & featuresVec1,
+                            const vector<Feature> & featuresVec2,
+                            vector<int> & matches) const
 {
 
-    double radius = 3; // search radius in pixels
+    const int N1 = featuresVec1.size();
+    const int N2 = featuresVec2.size();
+
+    matches.resize(N1);
+
+    // compute matches 1 -> 2
+    for (int i = 0; i < N1; i++)
+    {
+        double bestDist = stereoDistTh;
+        int bestMatch = -1;
+
+        for (int j = 0; j < N2; j++)
+        {
+            double alfa1 = alfaMap1(round(featuresVec1[i].pt(1)), round(featuresVec1[i].pt(0)));
+            double alfa2 = alfaMap2(round(featuresVec2[j].pt(1)), round(featuresVec2[j].pt(0)));
+            double beta1 = betaMap1(round(featuresVec1[i].pt(1)), round(featuresVec1[i].pt(0)));
+            double beta2 = betaMap2(round(featuresVec2[j].pt(1)), round(featuresVec2[j].pt(0)));
+
+            if (abs(alfa1 - alfa2) <= alfaTolerance and beta1 <= beta2 + betaTolerance)
+            {
+                double dist = (featuresVec1[i].desc - featuresVec2[j].desc).norm();
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestMatch = j;
+                }
+            }
+        }
+        matches[i] = bestMatch;
+    }
+
+    // compute matches 2 -> 1
+    vector<int> matches2(N2, -1);
+    for (int i = 0; i < N2; i++)
+    {
+        double bestDist = stereoDistTh;
+        int bestMatch = -1;
+
+        for (int j = 0; j < N1; j++)
+        {
+            double alfa1 = alfaMap1(round(featuresVec1[j].pt(1)), round(featuresVec1[j].pt(0)));
+            double alfa2 = alfaMap2(round(featuresVec2[i].pt(1)), round(featuresVec2[i].pt(0)));
+            double beta1 = betaMap1(round(featuresVec1[j].pt(1)), round(featuresVec1[j].pt(0)));
+            double beta2 = betaMap2(round(featuresVec2[i].pt(1)), round(featuresVec2[i].pt(0)));
+
+            if (abs(alfa1 - alfa2) <= alfaTolerance and beta1 <= beta2 + betaTolerance)
+            {
+                double dist = (featuresVec1[j].desc - featuresVec2[i].desc).norm();
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestMatch = j;
+                }
+            }
+        }
+        matches2[i] = bestMatch;
+    }
+
+    // filter matches
+    for (int i = 0; i < N1; i++)
+    {
+        if (matches2[matches[i]] != i)
+        {
+            matches[i] = -1;
+        }
+    }
+}
+
+void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
+		               const vector<Feature> & featuresVec2,
+		               vector<int> & matches, double radius) const
+{
 
     const int N1 = featuresVec1.size();
     const int N2 = featuresVec2.size();
@@ -152,99 +223,55 @@ void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
 
     for (int i = 0; i < N1; i++)
     {
-        double bestScore = 1000000;
+        double bestDist = reproDistTh;
         int bestMatch = -1;
         for (int j = 0; j < N2; j++)
         {
-            if ((featuresVec1.at(i).pt - featuresVec2.at(j).pt).norm() < radius)
+            if ((featuresVec1[i].pt - featuresVec2[j].pt).norm() < radius)
             {
-                double tempScore = (featuresVec1.at(i).desc - featuresVec2.at(j).desc).norm();
-                if (tempScore < bestScore)
+                double dist = (featuresVec1[i].desc - featuresVec2[j].desc).norm();
+                if (dist < bestDist)
                 {
                     bestMatch = j;
-                    bestScore = tempScore;
+                    bestDist = dist;
                 }
             }
         }
-        matches1.at(i) = bestMatch;
+        matches1[i] = bestMatch;
     }
 
     vector<int> matches2(N2, -1);
 
     for (int i = 0; i < N2; i++)
     {
-        double bestScore = 1000000;
+        double bestDist = reproDistTh;
         int bestMatch = -1;
         for (int j = 0; j < N1; j++)
         {
-            if ((featuresVec1.at(j).pt - featuresVec2.at(i).pt).norm() < radius)
+            if ((featuresVec1[j].pt - featuresVec2[i].pt).norm() < radius)
             {
-                double tempScore = (featuresVec1.at(j).desc - featuresVec2.at(i).desc).norm();
-                if (tempScore < bestScore)
+                double dist = (featuresVec1[j].desc - featuresVec2[i].desc).norm();
+                if (dist < bestDist)
                 {
                     bestMatch = j;
-                    bestScore = tempScore;
+                    bestDist = dist;
                 }
             }
         }
-        matches2.at(i) = bestMatch;
+        matches2[i] = bestMatch;
     }
 
     for (int i = 0; i < N1; i++)
     {
-        if ((matches1.at(i) > -1) && (matches2.at(matches1.at(i)) == i))
+        if ((matches1[i] > -1) && (matches2[matches1[i]] == i))
         {
-            matches.at(i) = matches1.at(i);
+            matches[i] = matches1[i];
         }
         else
         {
             matches[i] = -1;
         }
     }
-
-
-/*    vector<double> bestScores(N1, 2);
-
-    matches.resize(N1);
-
-    for (int i = 0; i < N1; i++)
-    {
-        matches[i] = -1;
-    }
-
-    for (int j = 0; j < N2; j++)
-    {
-        double bestScore = 1000000;
-        int iTempMatch = 0;
-
-        double alfa = 1;
-        double beta = 1;
-
-        for (int i = 0; i < N1 ; i++)
-        {
-
-            double descDist = (featuresVec1[i].desc - featuresVec2[j].desc).norm();
-            double spaceDist = (featuresVec1[i].pt - featuresVec2[j].pt).norm();
-            double score = alfa * descDist + beta * spaceDist;
-
-            if (score < bestScore)
-            {
-                bestScore = score;
-                iTempMatch = i;
-            }
-        }
-        if (bestScore < bestScores[iTempMatch])
-        {
-            matches[iTempMatch] = j;
-            bestScores[iTempMatch] = bestScore;
-        }
-    }
-
-    /*for (int i = 0; i < N1; i++)
-    {
-        cout << " i=" << i << " bestScores[i]=" << bestScores[i] << endl;
-    }
-    */
 
 }
 
@@ -380,21 +407,20 @@ void Matcher::computeMaps(const StereoSystem & stereo)
 
     RTot = RSigma*RPhi;
 
-    Eigen::Vector2d p;
-    Eigen::Vector3d v;
-
     // compute maps for camera 1
     for (int i = 0; i < stereo.cam1->height; i++)
     {
         for (int j = 0; j < stereo.cam1->width; j++)
         {
+            Eigen::Vector2d p;
+            Eigen::Vector3d v;
             p << j, i;
-            stereo.cam2->reconstructPoint(p, v);
+            stereo.cam1->reconstructPoint(p, v);
             Eigen::Vector3d v2;
             v2 = RTot * v;
 
             double alfa = std::atan2(v2(1), v2(2))*180/pi;
-            double beta = std::atan2(v2(0), v2(2))*180/pi;
+            double beta = std::atan2(v2(2), v2(0))*180/pi;
 
             alfaMap1(i, j) = alfa;
             betaMap1(i, j) = beta;
@@ -406,13 +432,15 @@ void Matcher::computeMaps(const StereoSystem & stereo)
     {
         for (int j = 0; j < stereo.cam2->width; j++)
         {
+            Eigen::Vector2d p;
+            Eigen::Vector3d v;
             p << j, i;
-            stereo.cam1->reconstructPoint(p, v);
+            stereo.cam2->reconstructPoint(p, v);
             Eigen::Vector3d v2;
-            v2 = RTot * R * v;
+            v2 = RTot * (R * v);
 
             double alfa = std::atan2(v2(1), v2(2))*180/pi;
-            double beta = std::atan2(v2(0), v2(2))*180/pi;
+            double beta = std::atan2(v2(2), v2(0))*180/pi;
 
             alfaMap2(i, j) = alfa;
             betaMap2(i, j) = beta;
