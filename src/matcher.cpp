@@ -173,7 +173,7 @@ void Matcher::stereoMatch_2(const vector<Feature> & featuresVec1,
     }
 
     // compute matches 2 -> 1
-    vector<int> matches2(N2, -1);
+    /*vector<int> matches2(N2, -1);
     for (int i = 0; i < N2; i++)
     {
         double bestDist = stereoDistTh;
@@ -206,7 +206,7 @@ void Matcher::stereoMatch_2(const vector<Feature> & featuresVec1,
         {
             matches[i] = -1;
         }
-    }
+    }*/
 }
 
 void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
@@ -444,6 +444,57 @@ void Matcher::computeMaps(const StereoSystem & stereo)
 
             alfaMap2(i, j) = alfa;
             betaMap2(i, j) = beta;
+        }
+    }
+}
+
+void Matcher::bruteForce_2(const vector<Feature> & featuresVec1,
+                           const vector<Feature> & featuresVec2,
+                           vector<vector<int>> & matches) const
+{
+
+    const int N1 = featuresVec1.size();
+    const int N2 = featuresVec2.size();
+
+    matches.resize(N1);
+
+    for (int i = 0; i < N1; i++)
+    {
+        matches[i].resize(0);
+        vector<bool> matched(N2, false);
+
+        int k = 0;
+        bool found = true;
+        while (k < bf2matches and found)
+        {
+            found = false;
+
+            int bestMatch = -1;
+            double bestDist = bfDistTh2;
+
+            for (int j = 0; j < N2 ; j++)
+            {
+                double dist = (featuresVec1[i].desc - featuresVec2[j].desc).norm();
+
+                if (dist < bestDist and matched[j] == false)
+                {
+                    bestDist = dist;
+                    bestMatch = j;
+                    found = true;
+                }
+            }
+
+            if (found)
+            {
+                matches[i].push_back(bestMatch);
+                matched[bestMatch] = true;
+            }
+
+            k++;
+        }
+        for (int j = matches[i].size(); j < bf2matches; j++)
+        {
+            matches[i].push_back(-1);
         }
     }
 }

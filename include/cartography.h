@@ -149,8 +149,10 @@ class Odometry
 {
 public:
     vector<Vector2d> observationVec;
+    vector<vector<Vector2d> > observationVec_2;
     vector<Vector3d> cloud;
     vector<bool> inlierMask;
+    vector<vector<bool> > inlierMask_2;
     Transformation<double> TorigBase;
     const Transformation<double> TbaseCam;
     const ICamera & camera;
@@ -167,7 +169,11 @@ public:
 
     void computeTransformation();
 
+    void computeTransformation_2();
+
     void Ransac();
+
+    void Ransac_2();
 };
 
 
@@ -176,12 +182,12 @@ class StereoCartography
 public:
     StereoCartography (Transformation<double> & p1, Transformation<double> & p2,
             ICamera & c1, ICamera & c2)
-            : stereo(p1, p2, c1, c2)
+            : stereo(p1, p2, c1, c2), extractor(3000, 1, 2, false, true)
     {
-        Extractor extr(4000, 1, 2, false, true);
-        extractor = extr;
+        //extractor.setType(FeatureType::Custom);
         matcher.initStereoBins(stereo);
         matcher.computeMaps(stereo);
+        srand(0);
     }
 //    virtual ~StereoCartography () { LM.clear(); trajectory.clear(); }
 
@@ -197,9 +203,13 @@ public:
     //performs optimization of all landmark positions wrt the actual path
     void improveTheMap();
 
+    void improveTheMap_2();
+
     Transformation<double> estimateOdometry(const vector<Feature> & featureVec) const;
 
     Transformation<double> estimateOdometry_2(const vector<Feature> & featureVec) const;
+
+    Transformation<double> estimateOdometry_3(const vector<Feature> & featureVec) const;
 
     //the library of all landmarks
     //to be replaced in the future with somth smarter than a vector

@@ -275,6 +275,48 @@ void StereoCartography::improveTheMap()
 
 }
 
+void StereoCartography::improveTheMap_2()
+{
+    //BUNDLE ADJUSTMENT
+    MapInitializer initializer;
+    for (auto & landmark : LM)
+    {
+        if (landmark.observations.size() < 6)
+        {
+            continue;
+        }
+        for (auto & observation : landmark.observations)
+        {
+            int xiIdx = observation.poseIdx;
+            if (xiIdx == 0)
+            {
+                if (observation.cameraId == LEFT)
+                {
+                    initializer.addFixedObservation(landmark.X, observation.pt,
+                            trajectory[xiIdx], stereo.cam1, stereo.TbaseCam1);
+                }
+                else
+                {
+                    initializer.addFixedObservation(landmark.X, observation.pt,
+                            trajectory[xiIdx], stereo.cam2, stereo.TbaseCam2);
+                }
+            }
+            else if (observation.cameraId == LEFT)
+            {
+                initializer.addObservation(landmark.X, observation.pt,
+                        trajectory[xiIdx], stereo.cam1, stereo.TbaseCam1);
+            }
+            else
+            {
+                initializer.addObservation(landmark.X, observation.pt,
+                        trajectory[xiIdx], stereo.cam2, stereo.TbaseCam2);
+            }
+        }
+    }
+    initializer.compute();
+
+}
+
 void Odometry::computeTransformation()
 {
     assert(observationVec.size() == cloud.size());
@@ -296,6 +338,29 @@ void Odometry::computeTransformation()
     Solve(options, &problem, &summary);
 }
 
+void Odometry::computeTransformation_2()
+{
+    assert(observationVec_2.size() == cloud.size());
+    assert(observationVec_2.size() == inlierMask_2.size());
+    Problem problem;
+    for (unsigned int i = 0; i < cloud.size(); i++)
+    {
+        for (int j = 0; j < inlierMask_2[i].size(); j++)
+        {
+            if (not inlierMask_2[i][j]) continue;
+            CostFunction * costFunc = new OdometryError(cloud[i],
+                                        observationVec_2[i][j], TbaseCam, camera);
+            problem.AddResidualBlock(costFunc, NULL,
+                                        TorigBase.transData(), TorigBase.rotData());
+        }
+    }
+
+    Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_SCHUR;
+    Solver::Summary summary;
+    Solve(options, &problem, &summary);
+}
+
 void Odometry::Ransac()
 {
     assert(observationVec.size() == cloud.size());
@@ -303,9 +368,7 @@ void Odometry::Ransac()
 
     inlierMask.resize(numPoints);
 
-    srand(0);
-
-    const int numIterMax = 50;
+    const int numIterMax = 100;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -367,6 +430,102 @@ void Odometry::Ransac()
         {
             //TODO copy in a bettegit lor way
             inlierMask = currentInlierMask;
+            bestInliers = countInliers;
+            TorigBase = pose;
+        }
+    }
+}
+
+void Odometry::Ransac_2()
+{
+    assert(observationVec_2.size() == cloud.size());
+    int numPoints = observationVec_2.size();
+
+    inlierMask_2.resize(numPoints);
+
+    const int numIterMax = 150;
+    const Transformation<double> initialPose = TorigBase;
+    int bestInliers = 0;
+    //TODO add a termination criterion
+    for (unsigned int iteration = 0; iteration < numIterMax; iteration++)
+    {
+        Transformation<double> pose = initialPose;
+        int maxIdx = observationVec_2.size();
+        //choose three points at random
+        int idx1m = rand() % maxIdx;
+        int idx2m, idx3m;
+        do
+        {
+                idx2m = rand() % maxIdx;
+        } while (idx2m == idx1m);
+
+        do
+        {
+                idx3m = rand() % maxIdx;
+        } while (idx3m == idx1m or idx3m == idx2m);
+
+        int idx1p = rand() % observationVec_2[idx1m].size();
+        int idx2p = rand() % observationVec_2[idx2m].size();
+        int idx3p = rand() % observationVec_2[idx3m].size();
+
+        int index1 [3] = { idx1m, idx2m, idx3m };
+        int index2 [3] = { idx1p, idx2p, idx3p };
+
+        //solve an optimization problem
+
+        Problem problem;
+        for (int i = 0; i < 3; i++)
+        {
+            CostFunction * costFunc = new OdometryError(cloud[index1[i]],
+                                        observationVec_2[index1[i]][index2[i]], TbaseCam, camera);
+            problem.AddResidualBlock(costFunc, NULL,
+                        pose.transData(), pose.rotData());
+        }
+
+        Solver::Options options;
+        options.linear_solver_type = ceres::DENSE_SCHUR;
+        Solver::Summary summary;
+        options.max_num_iterations = 20;
+        Solve(options, &problem, &summary);
+
+        //count inliers
+        vector<Vector3d> XcamVec(numPoints);
+        Transformation<double> TorigCam = pose.compose(TbaseCam);
+        TorigCam.inverseTransform(cloud, XcamVec);
+        vector<Vector2d> projVec(numPoints);
+        camera.projectPointCloud(XcamVec, projVec);
+        vector<vector<bool> > currentInlierMask(numPoints);
+        for (int i = 0; i < numPoints; i++)
+        {
+            vector<bool> vec(observationVec_2[i].size(), false);
+            currentInlierMask[i] = vec;
+        }
+
+        int countInliers = 0;
+        for (unsigned int i = 0; i < numPoints; i++)
+        {
+            double errNorm = 1000000;
+            int best;
+            for (int j = 0; j < observationVec_2[i].size(); j++)
+            {
+                double errNormTemp = (observationVec_2[i][j] - projVec[i]).norm();
+                if (errNormTemp < errNorm)
+                {
+                    errNorm = errNormTemp;
+                    best = j;
+                }
+            }
+            if (errNorm < 1)
+            {
+                currentInlierMask[i][best] = true;
+                countInliers++;
+            }
+        }
+        //keep the best hypothesis
+        if (countInliers > bestInliers)
+        {
+            //TODO copy in a bettegit lor way
+            inlierMask_2 = currentInlierMask;
             bestInliers = countInliers;
             TorigBase = pose;
         }
@@ -519,5 +678,58 @@ Transformation<double> StereoCartography::estimateOdometry_2(const vector<Featur
     return odometry.TorigBase;
 }
 
+Transformation<double> StereoCartography::estimateOdometry_3(const vector<Feature> & featureVec) const
+{
+    //Matching
 
+    int numLandmarks = LM.size();
+    int maxActive = 300;
+    int numActive = 0;
+    vector<int> correspondence;
+    vector<Feature> lmFeatureVec;
+//    cout << "ca va" << endl;
+    int k = numLandmarks;
+    while (k > 0 and numActive < maxActive)
+    {
+        k--;
+        Eigen::Vector3d Xb, Xc;
+        trajectory.back().inverseTransform(LM[k].X, Xb);
+        stereo.TbaseCam1.inverseTransform(Xb, Xc);
+        if (Xc(2) > 1 and LM[k].observations.back().poseIdx == trajectory.size()-1)
+        {
+            lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[k].d));
+            numActive++;
+            correspondence.push_back(k);
+        }
+    }
+
+//    cout << "ca va" << endl;
+    vector<vector<int> > matchVec;
+    matcher.bruteForce_2(lmFeatureVec, featureVec, matchVec);
+
+    Odometry odometry(trajectory.back(), stereo.TbaseCam1, stereo.cam1);
+//    cout << "ca va" << endl;
+    for (int i = 0; i < numActive; i++)
+    {
+        vector<Vector2d> vec;
+        for (int j = 0; j < matchVec[i].size(); j++)
+        {
+            if (matchVec[i][j] == -1) continue;
+            vec.push_back(featureVec[matchVec[i][j]].pt);
+        }
+        if (vec.size() > 0)
+        {
+            odometry.observationVec_2.push_back(vec);
+            odometry.cloud.push_back(LM[correspondence[i]].X);
+        }
+    }
+//    cout << "cloud : " << odometry.cloud.size() << endl;
+    //RANSAC
+    odometry.Ransac_2();
+//    cout << odometry.TorigBase << endl;
+    //Final transformation computation
+    odometry.computeTransformation_2();
+//    cout << odometry.TorigBase << endl;
+    return odometry.TorigBase;
+}
 

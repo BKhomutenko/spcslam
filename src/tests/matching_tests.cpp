@@ -435,14 +435,14 @@ void displayStereoMatch_2(const StereoSystem & stereo)
 
     stringstream sstm;
 
-    cv::Mat imgL = cv::imread("../datasets/dataset_odometry/view_left_446.png", 0);
-    cv::Mat imgR = cv::imread("../datasets/dataset_odometry/view_right_446.png", 0);
+    cv::Mat img1 = cv::imread("../datasets/dataset_odometry/view_left_446.png", 0);
+    cv::Mat img2 = cv::imread("../datasets/dataset_odometry/view_right_446.png", 0);
 
     vector<Feature> featuresVec1, featuresVec2;
     Extractor extr(1000, 2, 2, false, true);
 
-    extr(imgL, featuresVec1);
-    extr(imgR, featuresVec2);
+    extr(img1, featuresVec1);
+    extr(img2, featuresVec2);
 
     const int NL = featuresVec1.size();
     const int NR = featuresVec2.size();
@@ -455,18 +455,18 @@ void displayStereoMatch_2(const StereoSystem & stereo)
     matcher.computeMaps(stereo);
     matcher.stereoMatch_2(featuresVec1, featuresVec2, matches);
 
-    vector<cv::KeyPoint> keypointsL;
+    vector<cv::KeyPoint> keypoints1;
     for (int i = 0; i < NL; i++)
     {
         cv::KeyPoint kp(featuresVec1[i].pt(0)*resizeRatio, featuresVec1[i].pt(1)*resizeRatio, 1);
-        keypointsL.push_back(kp);
+        keypoints1.push_back(kp);
     }
 
-    vector<cv::KeyPoint> keypointsR;
+    vector<cv::KeyPoint> keypoints2;
     for (int i = 0; i < NR; i++)
     {
         cv::KeyPoint kp(featuresVec2[i].pt(0)*resizeRatio, featuresVec2[i].pt(1)*resizeRatio, 1);
-        keypointsR.push_back(kp);
+        keypoints2.push_back(kp);
     }
 
     vector<cv::DMatch> mD;
@@ -482,23 +482,23 @@ void displayStereoMatch_2(const StereoSystem & stereo)
 
     cout << endl << "Number of stereo matches: " << mD.size() << endl << endl;
 
-    cv::resize(imgL, imgL, cv::Size(0,0), resizeRatio, resizeRatio);
-    cv::resize(imgR, imgR, cv::Size(0,0), resizeRatio, resizeRatio);
+    cv::resize(img1, img1, cv::Size(0,0), resizeRatio, resizeRatio);
+    cv::resize(img2, img2, cv::Size(0,0), resizeRatio, resizeRatio);
 
     vector<cv::DMatch> mD2;
-    vector<cv::KeyPoint> kL, kR;
+    vector<cv::KeyPoint> k1, k2;
     for (int i = 0; i < mD.size(); i++)
     {
         mD2.clear();
-        kL.clear();
-        kR.clear();
+        k1.clear();
+        k2.clear();
 
         int tr = mD[i].trainIdx;
         int qu = mD[i].queryIdx;
         cv::DMatch dm(0, 0, 1);
         mD2.push_back(dm);
-        kL.push_back(keypointsL[tr]);
-        kR.push_back(keypointsR[qu]);
+        k1.push_back(keypoints1[tr]);
+        k2.push_back(keypoints2[qu]);
 
         /*cout << "P1 (" << featuresVec1[tr].pt(0) << "," << featuresVec1[tr].pt(1) << ")   P2 ("
              << featuresVec2[qu].pt(0) << "," << featuresVec2[qu].pt(1) << ")   beta1: "
@@ -512,7 +512,7 @@ void displayStereoMatch_2(const StereoSystem & stereo)
              << endl;
 
         cv::Mat imgMatches;
-        cv::drawMatches(imgL, kL, imgR, kR, mD2, imgMatches);
+        cv::drawMatches(img1, k1, img2, k2, mD2, imgMatches);
         cv::imshow("Matches", imgMatches);
 
         cv::waitKey();
@@ -705,6 +705,94 @@ void testDistancesBF()
 
 }
 
+void displayBruteForce_2 ()
+{
+    // testing function for bruteForce_2()
+
+    float resizeRatio = 0.5;
+
+    //stringstream sstm;
+
+    cv::Mat img1 = cv::imread("../datasets/dataset_odometry/view_left_0.png", 0);
+    cv::Mat img2 = cv::imread("../datasets/dataset_odometry/view_right_0.png", 0);
+
+    vector<Feature> featuresVec1, featuresVec2;
+    Extractor extr(3000, 1, 2, false, true);
+
+    extr(img1, featuresVec1);
+    extr(img2, featuresVec2);
+
+    const int N1 = featuresVec1.size();
+    const int N2 = featuresVec2.size();
+    cout << endl << "N1=" << N1 << " N2=" << N2 << endl;
+
+    vector<vector<int>> matches;
+
+    Matcher matcher;
+    matcher.bruteForce_2(featuresVec1, featuresVec2, matches);
+
+    vector<cv::KeyPoint> keypoints1;
+    for (int i = 0; i < N1; i++)
+    {
+        cv::KeyPoint kp(featuresVec1[i].pt(0)*resizeRatio, featuresVec1[i].pt(1)*resizeRatio, 1);
+        keypoints1.push_back(kp);
+    }
+
+    vector<cv::KeyPoint> keypoints2;
+    for (int i = 0; i < N2; i++)
+    {
+        cv::KeyPoint kp(featuresVec2[i].pt(0)*resizeRatio, featuresVec2[i].pt(1)*resizeRatio, 1);
+        keypoints2.push_back(kp);
+    }
+
+    cv::resize(img1, img1, cv::Size(0,0), resizeRatio, resizeRatio);
+    cv::resize(img2, img2, cv::Size(0,0), resizeRatio, resizeRatio);
+
+    for (int i = 0; i < N1; i++)
+    {
+
+        vector<cv::DMatch> mD;
+        for (int j = 0; j < matches[i].size(); j++)
+        {
+            if (matches[i][j] != -1)
+            {
+                //cout << "i=" << i << " matches[i]=" << matches[i] << endl;
+                cv::DMatch m(matches[i][j], i, 0);
+                mD.push_back(m);
+            }
+        }
+
+        vector<cv::DMatch> mD2;
+        vector<cv::KeyPoint> k1, k2;
+        for (int j = 0; j < mD.size(); j++)
+        {
+            mD2.clear();
+            k1.clear();
+            k2.clear();
+
+            int tr = mD[j].trainIdx;
+            int qu = mD[j].queryIdx;
+            cv::DMatch dm(0, 0, 1);
+            mD2.push_back(dm);
+            k1.push_back(keypoints1[tr]);
+            k2.push_back(keypoints2[qu]);
+
+
+            cv::Mat imgMatches;
+            cv::drawMatches(img1, k1, img2, k2, mD2, imgMatches, 255);
+            cv::imshow("Matches", imgMatches);
+
+            double dist = (featuresVec1[tr].desc - featuresVec2[qu].desc).norm();
+
+            cout << "Displaying match " << j+1 << "/" << mD.size() << " for feature " << i
+                 << "  distance: " << dist << " Size 1: " << featuresVec1[tr].size
+                 << "  Size 2: " << featuresVec2[qu].size << endl;
+
+            cv::waitKey();
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     //testBruteForce();
@@ -723,11 +811,13 @@ int main(int argc, char** argv)
 
     // displayBins(map.stereo);
 
-    displayStereoMatch_2(map.stereo);
+    // displayStereoMatch_2(map.stereo);
 
     // displayBruteForce();
 
     // testDistancesBF();
+
+    displayBruteForce();
 
     return 0;
 }

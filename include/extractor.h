@@ -1,12 +1,20 @@
 #ifndef _EXTRACTOR_H_
 #define _EXTRACTOR_H_
 
+#include <stdlib.h>
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 #include <Eigen/Eigen>
 
+
+
 using Eigen::Vector2d;
 using Eigen::Matrix;
+
+using namespace std;
+
+enum FeatureType {SURF, Custom};
 
 struct Feature
 {
@@ -37,9 +45,16 @@ struct Feature
 class Extractor
 {
 private:
+
     cv::SurfFeatureDetector det;
     cv::SurfDescriptorExtractor extr;
 
+    FeatureType fType = FeatureType::SURF;
+
+    cv::Mat kernel;
+    cv::Mat mask;
+    int thresh = 50;
+    const int descWidth = 4;
 public:
 
     //Extractor() {}
@@ -49,7 +64,25 @@ public:
 
     Extractor() {}
 
-    void operator()(const cv::Mat & img, std::vector<Feature> & kpVec);
+    void setType(FeatureType featType);
+
+    void operator()(const cv::Mat & img, std::vector<Feature> & featuresVec);
+
+    void extractFeatures(cv::Mat src, vector<cv::KeyPoint> points, cv::Mat & descriptors);
+
+    void extractFeatures(const vector<cv::Mat> & images, vector< vector<cv::KeyPoint> > & keypoints,
+                         vector<cv::Mat> & descriptors);
+
+    void extractDescriptor(cv::Mat src, cv::Point2f pt, int patchSize, cv::Size descSize, cv::Mat & dst);
+
+    void findMax(cv::Mat src, vector<cv::Point2f> & maxPoints, float threshold);
+
+    void findFeatures(cv::Mat src, std::vector<cv::KeyPoint> & points, float scale1,
+                      float scale2=-1, int steps=3);
+
+    void computeResponse(const cv::Mat src, cv::Mat & dst, float scale);
+
+    void cvtNormimagesmage(cv::Mat & image);
 
 };
 

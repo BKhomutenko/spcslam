@@ -216,8 +216,8 @@ void testOdometry()
 void initializeMap()
 {
 
-    int Nsteps = 130;
-    int firstImage = 385;
+    int Nsteps = 50;
+    int firstImage = 450;
 
     bool display = false;
 
@@ -291,7 +291,7 @@ void initializeMap()
         {
             int N = map.LM.size();
             //cout << "map size " << N << endl;
-            Transformation<double> newPose = map.estimateOdometry(featuresVec1);
+            Transformation<double> newPose = map.estimateOdometry_3(featuresVec1);
             cout << endl << "i=" << i << "  Odometry: " << newPose << endl;
             map.trajectory.push_back(newPose);
 
@@ -493,7 +493,7 @@ void initializeMap()
         }
     }
 
-    int progressiveNum = 52;
+    int progressiveNum = 63;
 
     // save point cloud to text file
     ofstream myfile3("../../VM_shared/cloudInit_" + to_string(progressiveNum) + ".txt");
@@ -531,6 +531,77 @@ void initializeMap()
     dt = double(end - begin) / CLOCKS_PER_SEC;
     cout << endl << "DONE. Total time to complete: " << dt << endl;
 
+    float resizeRatio = 0.5;
+
+    for (int i = 0; i < Nsteps; i++)
+    {
+
+        string imageFile1 = datasetPath + prefix1 + to_string(i + firstImage) + extension;
+        string imageFile2 = datasetPath + prefix2 + to_string(i + firstImage) + extension;
+        cv::Mat image1 = cv::imread(imageFile1, 0);
+        cv::Mat image2 = cv::imread(imageFile2, 0);
+
+        cv::resize(image1, image1, cv::Size(0,0), resizeRatio, resizeRatio);
+        cv::resize(image2, image2, cv::Size(0,0), resizeRatio, resizeRatio);
+
+        vector<Eigen::Vector3d> Point3D;
+        vector<Eigen::Vector2d> obs1, obs2;
+        for (int j = 0; j < map.LM.size(); j++)
+        {
+            bool added = false;
+            for (int k = 0; k < map.LM[j].observations.size(); k++)
+            {
+                if (map.LM[j].observations[k].poseIdx == i)
+                {
+                    if (added == false)
+                    {
+                        Point3D.push_back(map.LM[j].X);
+                        added = true;
+                    }
+                    if (map.LM[j].observations[k].cameraId == CameraID::LEFT)
+                    {
+                        obs1.push_back(map.LM[j].observations[k].pt);
+                    }
+                    if (map.LM[j].observations[k].cameraId == CameraID::RIGHT)
+                    {
+                        obs2.push_back(map.LM[j].observations[k].pt);
+                    }
+                }
+            }
+        }
+
+        vector<Eigen::Vector2d> repro1, repro2;
+        map.projectPointCloud(Point3D, repro1, repro2, i);
+
+        cv::cvtColor(image1, image1, CV_GRAY2BGR);
+        cv::cvtColor(image2, image2, CV_GRAY2BGR);
+
+        // draw observations
+
+        for (int j = 0; j < obs1.size(); j++)
+        {
+            cv::circle(image1, cv::Point(obs1[j](0), obs1[j](1))*resizeRatio,
+                       6, cv::Scalar(255, 0, 0), 2);
+        }
+        for (int j = 0; j < obs2.size(); j++)
+        {
+            cv::circle(image2, cv::Point(obs2[j](0), obs2[j](1))*resizeRatio,
+                       6, cv::Scalar(255, 0, 0), 2);
+        }
+        for (int j = 0; j < Point3D.size(); j++)
+        {
+            cv::circle(image1, cv::Point(repro1[j](0), repro1[j](1))*resizeRatio,
+                       3, cv::Scalar(0, 255, 0), 2);
+            cv::circle(image2, cv::Point(repro2[j](0), repro2[j](1))*resizeRatio,
+                       3, cv::Scalar(0, 255, 0), 2);
+        }
+
+        cv::imshow("Camera 1", image1);
+        cv::imshow("Camera 2", image2);
+
+        cv::waitKey();
+
+    }
 }
 
 
