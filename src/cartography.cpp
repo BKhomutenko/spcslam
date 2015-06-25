@@ -233,45 +233,63 @@ void StereoCartography::projectPointCloud(const vector<Vector3d> & src,
     stereo.projectPointCloud(Xb, dst1, dst2);
 }
 
-void StereoCartography::improveTheMap()
+void StereoCartography::improveTheMap(bool firstBA)
 {
     //BUNDLE ADJUSTMENT
-    MapInitializer initializer;
-    for (auto & landmark : LM)
+    int lastFixedPos;
+    if (firstBA)
     {
-        if (landmark.observations.size() < 6)
+        lastFixedPos = 0;
+    }
+    else
+    {
+        int step = trajectory.size()-1;
+        lastFixedPos = max(1, step-4);
+    }
+    if (WM.size() > 10)
+    {
+        /*int fixedPos = trajectory.size();
+        for (auto & landmark : WM)
         {
-            continue;
-        }
-        for (auto & observation : landmark.observations)
-        {
-            int xiIdx = observation.poseIdx;
-            if (xiIdx == 0)
+            int firstOb = landmark.observations[0].poseIdx;
+            if (firstOb < fixedPos)
             {
-                if (observation.cameraId == LEFT)
+                fixedPos = firstOb;
+            }
+        }*/
+        MapInitializer initializer;
+        for (auto & landmark : WM)
+        {
+            for (auto & observation : landmark.observations)
+            {
+                int xiIdx = observation.poseIdx;
+                if (xiIdx <= lastFixedPos)
                 {
-                    initializer.addFixedObservation(landmark.X, observation.pt,
+                    if (observation.cameraId == LEFT)
+                    {
+                        initializer.addFixedObservation(landmark.X, observation.pt,
+                                trajectory[xiIdx], stereo.cam1, stereo.TbaseCam1);
+                    }
+                    else
+                    {
+                        initializer.addFixedObservation(landmark.X, observation.pt,
+                                trajectory[xiIdx], stereo.cam2, stereo.TbaseCam2);
+                    }
+                }
+                else if (observation.cameraId == LEFT)
+                {
+                    initializer.addObservation(landmark.X, observation.pt,
                             trajectory[xiIdx], stereo.cam1, stereo.TbaseCam1);
                 }
                 else
                 {
-                    initializer.addFixedObservation(landmark.X, observation.pt,
+                    initializer.addObservation(landmark.X, observation.pt,
                             trajectory[xiIdx], stereo.cam2, stereo.TbaseCam2);
                 }
             }
-            else if (observation.cameraId == LEFT)
-            {
-                initializer.addObservation(landmark.X, observation.pt,
-                        trajectory[xiIdx], stereo.cam1, stereo.TbaseCam1);
-            }
-            else
-            {
-                initializer.addObservation(landmark.X, observation.pt,
-                        trajectory[xiIdx], stereo.cam2, stereo.TbaseCam2);
-            }
         }
+        initializer.compute();
     }
-    initializer.compute();
 
 }
 
@@ -279,12 +297,8 @@ void StereoCartography::improveTheMap_2()
 {
     //BUNDLE ADJUSTMENT
     MapInitializer initializer;
-    for (auto & landmark : LM)
+    for (auto & landmark : WM)
     {
-        if (landmark.observations.size() < 6)
-        {
-            continue;
-        }
         for (auto & observation : landmark.observations)
         {
             int xiIdx = observation.poseIdx;
@@ -368,7 +382,7 @@ void Odometry::Ransac()
 
     inlierMask.resize(numPoints);
 
-    const int numIterMax = 100;
+    const int numIterMax = 300;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -443,7 +457,7 @@ void Odometry::Ransac_2()
 
     inlierMask_2.resize(numPoints);
 
-    const int numIterMax = 150;
+    const int numIterMax = 300;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -485,7 +499,7 @@ void Odometry::Ransac_2()
         Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
         Solver::Summary summary;
-        options.max_num_iterations = 20;
+        options.max_num_iterations = 10;
         Solve(options, &problem, &summary);
 
         //count inliers
@@ -568,43 +582,74 @@ void Odometry::Ransac_2()
 //     return odometry.TorigBase;
 // }
 
+// odometry with ransac based on fixed BF matches
 Transformation<double> StereoCartography::estimateOdometry(const vector<Feature> & featureVec) const
 {
     //Matching
 
-    int numLandmarks = LM.size();
+    int nSTM = STM.size();
+    int nWM = WM.size();
     int maxActive = 300;
     int numActive = 0;
-    vector<int> correspondence;
+    vector<int> indexVec;
     vector<Feature> lmFeatureVec;
-//    cout << "ca va" << endl;
-    int k = numLandmarks;
+
+    // add landmarks from WM
+    int k = nWM;
     while (k > 0 and numActive < maxActive)
     {
         k--;
         Eigen::Vector3d Xb, Xc;
-        trajectory.back().inverseTransform(LM[k].X, Xb);
+        trajectory.back().inverseTransform(WM[k].X, Xb);
         stereo.TbaseCam1.inverseTransform(Xb, Xc);
-        if (Xc(2) > 1 and LM[k].observations.back().poseIdx == trajectory.size()-1)
+        if (Xc(2) > 0.5 and WM[k].observations.back().poseIdx == trajectory.size()-1)
         {
-            lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[k].d));
+            lmFeatureVec.push_back(Feature(Vector2d(0, 0), WM[k].d));
             numActive++;
-            correspondence.push_back(k);
+            indexVec.push_back(k);
+        }
+    }
+    int nWMreprojected = numActive;
+
+    // add landmarks from STM
+    k = nSTM;
+    while (k > 0 and numActive < maxActive)
+    {
+        k--;
+        Eigen::Vector3d Xb, Xc;
+        trajectory.back().inverseTransform(STM[k].X, Xb);
+        stereo.TbaseCam1.inverseTransform(Xb, Xc);
+        if (Xc(2) > 0.5 and STM[k].observations.back().poseIdx == trajectory.size()-1)
+        {
+            lmFeatureVec.push_back(Feature(Vector2d(0, 0), STM[k].d));
+            numActive++;
+            indexVec.push_back(k);
         }
     }
 
-//    cout << "ca va" << endl;
+    // matching
     vector<int> matchVec;
     matcher.bruteForceOneToOne(lmFeatureVec, featureVec, matchVec);
 
     Odometry odometry(trajectory.back(), stereo.TbaseCam1, stereo.cam1);
-//    cout << "ca va" << endl;
-    for (unsigned int i = 0; i < numActive; i++)
+
+    for (int i = 0; i < nWMreprojected; i++)
     {
-        if (matchVec[i] == -1) continue;
-        odometry.observationVec.push_back(featureVec[matchVec[i]].pt);
-        odometry.cloud.push_back(LM[correspondence[i]].X);
+        if (matchVec[i] != -1)
+        {
+            odometry.observationVec.push_back(featureVec[matchVec[i]].pt);
+            odometry.cloud.push_back(WM[indexVec[i]].X);
+        }
     }
+    for (int i = nWMreprojected; i < numActive; i++)
+    {
+        if (matchVec[i] != -1)
+        {
+            odometry.observationVec.push_back(featureVec[matchVec[i]].pt);
+            odometry.cloud.push_back(STM[indexVec[i]].X);
+        }
+    }
+
 //    cout << "cloud : " << odometry.cloud.size() << endl;
     //RANSAC
     odometry.Ransac();
@@ -615,11 +660,11 @@ Transformation<double> StereoCartography::estimateOdometry(const vector<Feature>
     return odometry.TorigBase;
 }
 
+// odometry based on motion hypothesis and reprojection matching
 Transformation<double> StereoCartography::estimateOdometry_2(const vector<Feature> & featureVec) const
 {
-    //Matching
-
-    int numLandmarks = LM.size();
+    int nSTM = STM.size();
+    int nWM = WM.size();
     int maxActive = 300;
     int numActive = 0;
 
@@ -634,39 +679,73 @@ Transformation<double> StereoCartography::estimateOdometry_2(const vector<Featur
 
     // predict position of the landmarks based on motion hypothesis
 
-    vector<int> correspondence;
+    vector<int> indexVec;
     vector<Feature> lmFeatureVec;
 //    cout << "ca va" << endl;
-    int k = numLandmarks;
+    int k = nWM;
     while (k > 0 and numActive < maxActive)
     {
         k--;
-        if (LM[k].observations.back().poseIdx == trajectory.size()-1)
+        if (WM[k].observations.back().poseIdx == trajectory.size()-1)
         {
             Eigen::Vector3d Xb, Xc;
-            Th.inverseTransform(LM[k].X, Xb);
+            Th.inverseTransform(WM[k].X, Xb);
             stereo.TbaseCam1.inverseTransform(Xb, Xc);
             if (Xc(2) > 0.5)
             {
                 Eigen::Vector2d pos;
                 bool res = stereo.cam1->projectPoint(Xc, pos);
-                lmFeatureVec.push_back(Feature(pos, LM[k].d));
+                lmFeatureVec.push_back(Feature(pos, WM[k].d));
                 numActive++;
-                correspondence.push_back(k);
+                indexVec.push_back(k);
+            }
+        }
+    }
+    int nWMreprojected = lmFeatureVec.size();
+
+    k = nSTM;
+    while (k > 0 and numActive < maxActive)
+    {
+        k--;
+        if (STM[k].observations.back().poseIdx == trajectory.size()-1)
+        {
+            Eigen::Vector3d Xb, Xc;
+            Th.inverseTransform(STM[k].X, Xb);
+            stereo.TbaseCam1.inverseTransform(Xb, Xc);
+            if (Xc(2) > 0.5)
+            {
+                Eigen::Vector2d pos;
+                bool res = stereo.cam1->projectPoint(Xc, pos);
+                lmFeatureVec.push_back(Feature(pos, STM[k].d));
+                numActive++;
+                indexVec.push_back(k);
             }
         }
     }
 
+    cout << endl << endl << "Tdelta: " << Tdelta << endl;
+    cout << "Th: " << Th << endl;
+    cout << "lmFeatureVec size: " << lmFeatureVec.size() << flush;
     vector<int> matchVec;
     matcher.matchReprojected(lmFeatureVec, featureVec, matchVec, 20);
 
     Odometry odometry(trajectory.back(), stereo.TbaseCam1, stereo.cam1);
 //    cout << "ca va" << endl;
-    for (unsigned int i = 0; i < numActive; i++)
+    for (int i = 0; i < nWMreprojected; i++)
     {
-        if (matchVec[i] == -1) continue;
-        odometry.observationVec.push_back(featureVec[matchVec[i]].pt);
-        odometry.cloud.push_back(LM[correspondence[i]].X);
+        if (matchVec[i] != -1)
+        {
+            odometry.observationVec.push_back(featureVec[matchVec[i]].pt);
+            odometry.cloud.push_back(WM[indexVec[i]].X);
+        }
+    }
+    for (int i = nWMreprojected; i < numActive; i++)
+    {
+        if (matchVec[i] != -1)
+        {
+            odometry.observationVec.push_back(featureVec[matchVec[i]].pt);
+            odometry.cloud.push_back(STM[indexVec[i]].X);
+        }
     }
 //    cout << "cloud : " << odometry.cloud.size() << endl;
     //RANSAC
@@ -678,51 +757,87 @@ Transformation<double> StereoCartography::estimateOdometry_2(const vector<Featur
     return odometry.TorigBase;
 }
 
+// odometry with ransac based on BF matches pool
 Transformation<double> StereoCartography::estimateOdometry_3(const vector<Feature> & featureVec) const
 {
     //Matching
-
-    int numLandmarks = LM.size();
+    int nSTM = STM.size();
+    int nWM = WM.size();
     int maxActive = 300;
     int numActive = 0;
-    vector<int> correspondence;
+    vector<int> indexVec;
     vector<Feature> lmFeatureVec;
-//    cout << "ca va" << endl;
-    int k = numLandmarks;
+
+    int k = nWM;
     while (k > 0 and numActive < maxActive)
     {
         k--;
         Eigen::Vector3d Xb, Xc;
-        trajectory.back().inverseTransform(LM[k].X, Xb);
+        trajectory.back().inverseTransform(WM[k].X, Xb);
         stereo.TbaseCam1.inverseTransform(Xb, Xc);
-        if (Xc(2) > 1 and LM[k].observations.back().poseIdx == trajectory.size()-1)
+        if (Xc(2) > 0.5 and WM[k].observations.back().poseIdx == trajectory.size()-1)
         {
-            lmFeatureVec.push_back(Feature(Vector2d(0, 0), LM[k].d));
+            lmFeatureVec.push_back(Feature(Vector2d(0, 0), WM[k].d));
             numActive++;
-            correspondence.push_back(k);
+            indexVec.push_back(k);
         }
     }
+    int nWMreprojected = numActive;
 
+    k = nSTM;
+    while (k > 0 and numActive < maxActive)
+    {
+        k--;
+        Eigen::Vector3d Xb, Xc;
+        trajectory.back().inverseTransform(STM[k].X, Xb);
+        stereo.TbaseCam1.inverseTransform(Xb, Xc);
+        if (Xc(2) > 0.5 and STM[k].observations.back().poseIdx == trajectory.size()-1)
+        {
+            lmFeatureVec.push_back(Feature(Vector2d(0, 0), STM[k].d));
+            numActive++;
+            indexVec.push_back(k);
+        }
+    }
 //    cout << "ca va" << endl;
     vector<vector<int> > matchVec;
     matcher.bruteForce_2(lmFeatureVec, featureVec, matchVec);
 
     Odometry odometry(trajectory.back(), stereo.TbaseCam1, stereo.cam1);
 //    cout << "ca va" << endl;
-    for (int i = 0; i < numActive; i++)
+    for (int i = 0; i < nWMreprojected; i++)
     {
         vector<Vector2d> vec;
         for (int j = 0; j < matchVec[i].size(); j++)
         {
-            if (matchVec[i][j] == -1) continue;
-            vec.push_back(featureVec[matchVec[i][j]].pt);
+            if (matchVec[i][j] != -1)
+            {
+                vec.push_back(featureVec[matchVec[i][j]].pt);
+            }
         }
         if (vec.size() > 0)
         {
             odometry.observationVec_2.push_back(vec);
-            odometry.cloud.push_back(LM[correspondence[i]].X);
+            odometry.cloud.push_back(WM[indexVec[i]].X);
         }
     }
+
+    for (int i = nWMreprojected; i < numActive; i++)
+    {
+        vector<Vector2d> vec;
+        for (int j = 0; j < matchVec[i].size(); j++)
+        {
+            if (matchVec[i][j] != -1)
+            {
+                vec.push_back(featureVec[matchVec[i][j]].pt);
+            }
+        }
+        if (vec.size() > 0)
+        {
+            odometry.observationVec_2.push_back(vec);
+            odometry.cloud.push_back(STM[indexVec[i]].X);
+        }
+    }
+
 //    cout << "cloud : " << odometry.cloud.size() << endl;
     //RANSAC
     odometry.Ransac_2();
@@ -732,4 +847,3 @@ Transformation<double> StereoCartography::estimateOdometry_3(const vector<Featur
 //    cout << odometry.TorigBase << endl;
     return odometry.TorigBase;
 }
-

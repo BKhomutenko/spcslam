@@ -201,7 +201,7 @@ public:
             vector<Vector2d> & dst1, vector<Vector2d> & dst2, int poseIdx) const;
 
     //performs optimization of all landmark positions wrt the actual path
-    void improveTheMap();
+    void improveTheMap(bool firstBA);
 
     void improveTheMap_2();
 
@@ -213,7 +213,8 @@ public:
 
     //the library of all landmarks
     //to be replaced in the future with somth smarter than a vector
-    vector<LandMark> LM;
+    //system memory (short-term mem, working mem, long-term mem)
+    vector<LandMark> STM, WM, LTM;
 
     //a chain of camera positions
     //first initialized with the odometry measurements

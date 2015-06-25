@@ -219,8 +219,6 @@ void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
 
     matches.resize(N1);
 
-    vector<int> matches1(N1, -1);
-
     for (int i = 0; i < N1; i++)
     {
         double bestDist = reproDistTh;
@@ -237,10 +235,10 @@ void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
                 }
             }
         }
-        matches1[i] = bestMatch;
+        matches[i] = bestMatch;
     }
 
-    vector<int> matches2(N2, -1);
+/*    vector<int> matches2(N2, -1);
 
     for (int i = 0; i < N2; i++)
     {
@@ -263,7 +261,7 @@ void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
 
     for (int i = 0; i < N1; i++)
     {
-        if ((matches1[i] > -1) && (matches2[matches1[i]] == i))
+        if ((matches[i] > -1) && (matches2[matches[i]] == i))
         {
             matches[i] = matches1[i];
         }
@@ -272,7 +270,7 @@ void Matcher::matchReprojected(const vector<Feature> & featuresVec1,
             matches[i] = -1;
         }
     }
-
+*/
 }
 
 void Matcher::initStereoBins(const StereoSystem & stereo)

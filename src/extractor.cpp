@@ -14,9 +14,13 @@ void Extractor::operator()(const cv::Mat & img, std::vector<Feature> & featuresV
 
     switch (fType) {
         case FeatureType::SURF:
+        {
             det.detect(img, cvKpVec);
+        }
         case FeatureType::Custom:
+        {
             findFeatures(img, cvKpVec, 3);
+        }
     }
 
     for (auto & kp : cvKpVec)

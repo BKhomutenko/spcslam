@@ -15,7 +15,7 @@ INCLUDE_DIRECTORIES(${CERES_INCLUDE_DIRS})
 include_directories(include)
 
 # add_executable( calibration
-#     src/main.cpp
+#     src/calibration.cpp
 # )
 #
 # target_link_libraries( calibration ${OpenCV_LIBS} )
@@ -41,16 +41,29 @@ include_directories(include)
 # target_link_libraries( matching_test ${OpenCV_LIBS} )
 # TARGET_LINK_LIBRARIES( matching_test ${CERES_LIBRARIES})
 
-add_executable( odometry_test
-    src/tests/odometry_tests.cpp
+# add_executable( odometry_test
+#     src/tests/odometry_tests.cpp
+#     src/vision.cpp
+#     src/matcher.cpp
+#     src/extractor.cpp
+#     src/cartography.cpp
+#     src/utils.cpp
+# )
+
+# target_link_libraries( odometry_test ${OpenCV_LIBS} )
+# TARGET_LINK_LIBRARIES( odometry_test ${CERES_LIBRARIES})
+
+add_executable( slam
+    src/main.cpp
     src/vision.cpp
     src/matcher.cpp
     src/extractor.cpp
     src/cartography.cpp
+    src/utils.cpp
 )
 
-target_link_libraries( odometry_test ${OpenCV_LIBS} )
-TARGET_LINK_LIBRARIES( odometry_test ${CERES_LIBRARIES})
+target_link_libraries( slam ${OpenCV_LIBS} )
+TARGET_LINK_LIBRARIES( slam ${CERES_LIBRARIES})
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "-O2")        ## Optimize
