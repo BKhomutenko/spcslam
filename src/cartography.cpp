@@ -244,7 +244,7 @@ void StereoCartography::improveTheMap(bool firstBA)
     else
     {
         int step = trajectory.size()-1;
-        lastFixedPos = max(1, step-4);
+        lastFixedPos = max(1, step - 4);
     }
     if (WM.size() > 10)
     {
@@ -457,7 +457,7 @@ void Odometry::Ransac_2()
 
     inlierMask_2.resize(numPoints);
 
-    const int numIterMax = 300;
+    const int numIterMax = 500;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -723,9 +723,10 @@ Transformation<double> StereoCartography::estimateOdometry_2(const vector<Featur
         }
     }
 
-    cout << endl << endl << "Tdelta: " << Tdelta << endl;
+    /*cout << endl << endl << "Tdelta: " << Tdelta << endl;
     cout << "Th: " << Th << endl;
-    cout << "lmFeatureVec size: " << lmFeatureVec.size() << flush;
+    cout << "lmFeatureVec size: " << lmFeatureVec.size() << flush;*/
+
     vector<int> matchVec;
     matcher.matchReprojected(lmFeatureVec, featureVec, matchVec, 20);
 
@@ -784,18 +785,21 @@ Transformation<double> StereoCartography::estimateOdometry_3(const vector<Featur
     }
     int nWMreprojected = numActive;
 
-    k = nSTM;
-    while (k > 0 and numActive < maxActive)
+    if (WM.size() < 50)
     {
-        k--;
-        Eigen::Vector3d Xb, Xc;
-        trajectory.back().inverseTransform(STM[k].X, Xb);
-        stereo.TbaseCam1.inverseTransform(Xb, Xc);
-        if (Xc(2) > 0.5 and STM[k].observations.back().poseIdx == trajectory.size()-1)
+        k = nSTM;
+        while (k > 0 and numActive < maxActive)
         {
-            lmFeatureVec.push_back(Feature(Vector2d(0, 0), STM[k].d));
-            numActive++;
-            indexVec.push_back(k);
+            k--;
+            Eigen::Vector3d Xb, Xc;
+            trajectory.back().inverseTransform(STM[k].X, Xb);
+            stereo.TbaseCam1.inverseTransform(Xb, Xc);
+            if (Xc(2) > 0.5 and STM[k].observations.back().poseIdx == trajectory.size()-1)
+            {
+                lmFeatureVec.push_back(Feature(Vector2d(0, 0), STM[k].d));
+                numActive++;
+                indexVec.push_back(k);
+            }
         }
     }
 //    cout << "ca va" << endl;
@@ -821,20 +825,23 @@ Transformation<double> StereoCartography::estimateOdometry_3(const vector<Featur
         }
     }
 
-    for (int i = nWMreprojected; i < numActive; i++)
+    if (WM.size() < 50)
     {
-        vector<Vector2d> vec;
-        for (int j = 0; j < matchVec[i].size(); j++)
+        for (int i = nWMreprojected; i < numActive; i++)
         {
-            if (matchVec[i][j] != -1)
+            vector<Vector2d> vec;
+            for (int j = 0; j < matchVec[i].size(); j++)
             {
-                vec.push_back(featureVec[matchVec[i][j]].pt);
+                if (matchVec[i][j] != -1)
+                {
+                    vec.push_back(featureVec[matchVec[i][j]].pt);
+                }
             }
-        }
-        if (vec.size() > 0)
-        {
-            odometry.observationVec_2.push_back(vec);
-            odometry.cloud.push_back(STM[indexVec[i]].X);
+            if (vec.size() > 0)
+            {
+                odometry.observationVec_2.push_back(vec);
+                odometry.cloud.push_back(STM[indexVec[i]].X);
+            }
         }
     }
 

@@ -7,8 +7,6 @@
 #include <opencv2/nonfree/features2d.hpp>
 #include <Eigen/Eigen>
 
-
-
 using Eigen::Vector2d;
 using Eigen::Matrix;
 
@@ -55,18 +53,35 @@ private:
     cv::Mat mask;
     int thresh = 50;
     const int descWidth = 4;
+
+    vector<Eigen::MatrixXi> binMaps;
+    const int nDivisions = 5;
+    const double ellipseAsq = 2.8 * 320 * 320;
+    const double ellipseBsq = 1.5 * 320 * 320;
+    const vector<double> ellipseU0 = { 608, 688 };
+    const double ellipseV0 = 450;
+
+    const int nFeatures = 300;
+    vector<vector<int>> featureDistributions;
+
 public:
 
     //Extractor() {}
 
     Extractor(double hessianThreshold, int nOctaves, int nOctaveLayers, bool extended, bool upright)
-    : det(hessianThreshold, nOctaves, nOctaveLayers, extended, upright) {}
+    : det(hessianThreshold, nOctaves, nOctaveLayers, extended, upright)
+    {
+        computeBinMaps();
+    }
 
-    Extractor() {}
+    Extractor()
+    {
+        computeBinMaps();
+    }
 
     void setType(FeatureType featType);
 
-    void operator()(const cv::Mat & img, std::vector<Feature> & featuresVec);
+    void operator()(const cv::Mat & img, std::vector<Feature> & featuresVec, int camId);
 
     void extractFeatures(cv::Mat src, vector<cv::KeyPoint> points, cv::Mat & descriptors);
 
@@ -75,14 +90,16 @@ public:
 
     void extractDescriptor(cv::Mat src, cv::Point2f pt, int patchSize, cv::Size descSize, cv::Mat & dst);
 
-    void findMax(cv::Mat src, vector<cv::Point2f> & maxPoints, float threshold);
+    void findMax(cv::Mat src, vector<cv::Point2f> & maxPoints, float threshold, int camId);
 
-    void findFeatures(cv::Mat src, std::vector<cv::KeyPoint> & points, float scale1,
+    void findFeatures(cv::Mat src, std::vector<cv::KeyPoint> & points, int camId, float scale1,
                       float scale2=-1, int steps=3);
 
     void computeResponse(const cv::Mat src, cv::Mat & dst, float scale);
 
     void cvtNormimagesmage(cv::Mat & image);
+
+    void computeBinMaps();
 
 };
 

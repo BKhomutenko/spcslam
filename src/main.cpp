@@ -247,7 +247,7 @@ void saveData(StereoCartography & map,  int progressiveNum)
             myfile1 << map.WM[i].X << "\n";
         }
         myfile1.close();
-        cout << endl << "Map saved to file, number: " << progressiveNum << endl;
+        cout << endl << endl << "Map saved to file, number: " << progressiveNum << endl;
     }
 
     // save trajectory to text file
@@ -265,13 +265,15 @@ void saveData(StereoCartography & map,  int progressiveNum)
 
 int main()
 {
-    int Nsteps = 1200;
+    int Nsteps = 600;
     int firstImage = 20;
-    int firstStepBA = 10;
-    int progressiveNum = 14;
+    int firstStepBA = 2;
     int odometryType = 3;
+    int allowedGapSize = 2;
+    int nObsMin = 6;
+    int progressiveNum = 24;
 
-    bool displayProgress = false;
+    bool displayProgress = true;
     bool displayResults = false;
 
     cout.precision(4);
@@ -313,8 +315,8 @@ int main()
         // extract features
         vector<Feature> featuresVec1, featuresVec2,
                         featuresVecC1, featuresVecC2, featuresLM1, featuresLM2;
-        map.extractor(image1, featuresVec1);
-        map.extractor(image2, featuresVec2);
+        map.extractor(image1, featuresVec1, 1);
+        map.extractor(image2, featuresVec2, 2);
 
         time4 = clock();
         dt2 = double(time4 - time1) / CLOCKS_PER_SEC;
@@ -368,8 +370,6 @@ int main()
                                matchesR2, indexList, nSTMprojected);
 
             // manage landmarks that are already in memory
-            int allowedGapSize = 1;
-            int nObsMin = 6;
             firstMemoryUpdate(map, allowedGapSize, nObsMin);
 
             // create vectors of candidates for new landmarks
@@ -382,12 +382,14 @@ int main()
 
         time2 = clock();
         dt3 = double(time2 - time4) / CLOCKS_PER_SEC;
-        cout << "\n\n" << "step: " << step << "  Odometry: " << map.trajectory.back()
-             << "\n" << "step: " << step << "  STM: " << map.STM.size()  << "   WM: "
+        cout << "\n\nstep: " << step << "  Odometry: " << map.trajectory.back()
+             << "\nstep: " << step << "  STM: " << map.STM.size()  << "   WM: "
              << map.WM.size()  << "   LTM: " << map.LTM.size()
-             << "\n" << "step: " << step << "  Images time: " << dt1
-             << "   Features time: " << dt2 << "\n"
-             << "step: " << step << "  LM time: " << dt3 << flush;
+             << "\nstep: " << step << "  Features left: " << featuresVec1.size()
+             << "   Features right: " << featuresVec2.size()
+             << "\nstep: " << step << "  Images time: " << dt1
+             << "   Features time: " << dt2
+             << "\nstep: " << step << "  LM time: " << dt3 << flush;
 
         if (step >= firstStepBA)
         {
@@ -407,7 +409,16 @@ int main()
 
         if (displayProgress)
         {
-            cv::waitKey();
+            double resizeRatio = 0.5;
+            cv::resize(image1, image1, cv::Size(0,0), resizeRatio, resizeRatio);
+            cv::cvtColor(image1, image1, CV_GRAY2BGR);
+            for (int j = 0; j < featuresVec1.size(); j++)
+            {
+                cv::circle(image1, cv::Point(featuresVec1[j].pt(0),
+                    featuresVec1[j].pt(1))*resizeRatio, 6, cv::Scalar(255, 0, 0), 2);
+            }
+            imshow("image1", image1);
+            cv::waitKey(200);
         }
     }
 
@@ -415,77 +426,80 @@ int main()
 
     end = clock();
     dt6 = double(end - begin) / CLOCKS_PER_SEC;
-    cout << endl << "DONE. Total time to complete: " << dt6 << endl;
-/*
-    float resizeRatio = 0.5;
+    cout << endl << "DONE. Total time to complete: " << dt6 << endl << endl;
 
-    for (int step = 0; step < Nsteps; step++)
+    if (displayResults)
     {
+        float resizeRatio = 0.5;
 
-        string imageFile1 = datasetPath + prefix1 + to_string(firstImage + step) + extension;
-        string imageFile2 = datasetPath + prefix2 + to_string(firstImage + step) + extension;
-        cv::Mat image1 = cv::imread(imageFile1, 0);
-        cv::Mat image2 = cv::imread(imageFile2, 0);
-
-        cv::resize(image1, image1, cv::Size(0,0), resizeRatio, resizeRatio);
-        cv::resize(image2, image2, cv::Size(0,0), resizeRatio, resizeRatio);
-
-        vector<Eigen::Vector3d> Point3D;
-        vector<Eigen::Vector2d> obs1, obs2;
-        for (int j = 0; j < map.LM.size(); j++)
+        for (int step = 0; step < Nsteps; step++)
         {
-            bool added = false;
-            for (int k = 0; k < map.LM[j].observations.size(); k++)
+
+            string imageFile1 = datasetPath + prefix1 + to_string(firstImage + step) + extension;
+            string imageFile2 = datasetPath + prefix2 + to_string(firstImage + step) + extension;
+            cv::Mat image1 = cv::imread(imageFile1, 0);
+            cv::Mat image2 = cv::imread(imageFile2, 0);
+
+            cv::resize(image1, image1, cv::Size(0,0), resizeRatio, resizeRatio);
+            cv::resize(image2, image2, cv::Size(0,0), resizeRatio, resizeRatio);
+
+            vector<Eigen::Vector3d> Point3D;
+            vector<Eigen::Vector2d> obs1, obs2;
+            for (int j = 0; j < map.LTM.size(); j++)
             {
-                if (map.LM[j].observations[k].poseIdx == step)
+                bool added = false;
+                for (int k = 0; k < map.LTM[j].observations.size(); k++)
                 {
-                    if (added == false)
+                    if (map.LTM[j].observations[k].poseIdx == step)
                     {
-                        Point3D.push_back(map.LM[j].X);
-                        added = true;
-                    }
-                    if (map.LM[j].observations[k].cameraId == CameraID::LEFT)
-                    {
-                        obs1.push_back(map.LM[j].observations[k].pt);
-                    }
-                    if (map.LM[j].observations[k].cameraId == CameraID::RIGHT)
-                    {
-                        obs2.push_back(map.LM[j].observations[k].pt);
+                        if (added == false)
+                        {
+                            Point3D.push_back(map.LTM[j].X);
+                            added = true;
+                        }
+                        if (map.LTM[j].observations[k].cameraId == CameraID::LEFT)
+                        {
+                            obs1.push_back(map.LTM[j].observations[k].pt);
+                        }
+                        if (map.LTM[j].observations[k].cameraId == CameraID::RIGHT)
+                        {
+                            obs2.push_back(map.LTM[j].observations[k].pt);
+                        }
                     }
                 }
             }
+
+            vector<Eigen::Vector2d> repro1, repro2;
+            map.projectPointCloud(Point3D, repro1, repro2, step);
+
+            cv::cvtColor(image1, image1, CV_GRAY2BGR);
+            cv::cvtColor(image2, image2, CV_GRAY2BGR);
+
+            // draw observations
+
+            for (int j = 0; j < obs1.size(); j++)
+            {
+                cv::circle(image1, cv::Point(obs1[j](0), obs1[j](1))*resizeRatio,
+                           6, cv::Scalar(255, 0, 0), 2);
+            }
+            for (int j = 0; j < obs2.size(); j++)
+            {
+                cv::circle(image2, cv::Point(obs2[j](0), obs2[j](1))*resizeRatio,
+                           6, cv::Scalar(255, 0, 0), 2);
+            }
+            for (int j = 0; j < Point3D.size(); j++)
+            {
+                cv::circle(image1, cv::Point(repro1[j](0), repro1[j](1))*resizeRatio,
+                           3, cv::Scalar(0, 255, 0), 2);
+                cv::circle(image2, cv::Point(repro2[j](0), repro2[j](1))*resizeRatio,
+                           3, cv::Scalar(0, 255, 0), 2);
+            }
+
+            cv::imshow("Camera 1", image1);
+            cv::imshow("Camera 2", image2);
+
+            cv::waitKey();
+
         }
-
-        vector<Eigen::Vector2d> repro1, repro2;
-        map.projectPointCloud(Point3D, repro1, repro2, step);
-
-        cv::cvtColor(image1, image1, CV_GRAY2BGR);
-        cv::cvtColor(image2, image2, CV_GRAY2BGR);
-
-        // draw observations
-
-        for (int j = 0; j < obs1.size(); j++)
-        {
-            cv::circle(image1, cv::Point(obs1[j](0), obs1[j](1))*resizeRatio,
-                       6, cv::Scalar(255, 0, 0), 2);
-        }
-        for (int j = 0; j < obs2.size(); j++)
-        {
-            cv::circle(image2, cv::Point(obs2[j](0), obs2[j](1))*resizeRatio,
-                       6, cv::Scalar(255, 0, 0), 2);
-        }
-        for (int j = 0; j < Point3D.size(); j++)
-        {
-            cv::circle(image1, cv::Point(repro1[j](0), repro1[j](1))*resizeRatio,
-                       3, cv::Scalar(0, 255, 0), 2);
-            cv::circle(image2, cv::Point(repro2[j](0), repro2[j](1))*resizeRatio,
-                       3, cv::Scalar(0, 255, 0), 2);
-        }
-
-        cv::imshow("Camera 1", image1);
-        cv::imshow("Camera 2", image2);
-
-        cv::waitKey();
-
-    }*/
+    }
 }

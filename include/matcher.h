@@ -16,12 +16,12 @@ class Matcher
 {
 public:
 
-    double bfDistTh = 0.15;
-    double bfDistTh2 = 0.15;
-    double stereoDistTh = 0.25;
-    double reproDistTh = 0.5;
+    double bfDistTh = 0.20;
+    double bfDistTh2 = 0.20;
+    double stereoDistTh = 0.20;
+    double reproDistTh = 0.20;
 
-    const int bf2matches = 5;
+    const int bf2matches = 3;
 
     double alfaTolerance = 0.4; //degrees
     double betaTolerance = 0.4; //degrees

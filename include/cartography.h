@@ -182,9 +182,9 @@ class StereoCartography
 public:
     StereoCartography (Transformation<double> & p1, Transformation<double> & p2,
             ICamera & c1, ICamera & c2)
-            : stereo(p1, p2, c1, c2), extractor(3000, 1, 2, false, true)
+            : stereo(p1, p2, c1, c2), extractor(3000, 2, 2, false, true)
     {
-        //extractor.setType(FeatureType::Custom);
+        extractor.setType(FeatureType::SURF);
         matcher.initStereoBins(stereo);
         matcher.computeMaps(stereo);
         srand(0);
