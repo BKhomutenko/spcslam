@@ -23,8 +23,10 @@ void Extractor::operator()(const cv::Mat & img, std::vector<Feature> & featuresV
             findFeatures(img, cvKpVec, camId, 3);
         }
     }*/
-    
+
     det.detect(img, cvKpVec);
+
+    //findFeatures(img, cvKpVec, camId, 3);
 
     /*cv::Mat mask;
     if (not mask.data)

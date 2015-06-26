@@ -265,13 +265,13 @@ void saveData(StereoCartography & map,  int progressiveNum)
 
 int main()
 {
-    int Nsteps = 600;
-    int firstImage = 20;
+    int Nsteps = 150;
+    int firstImage = 50;
     int firstStepBA = 2;
     int odometryType = 3;
     int allowedGapSize = 2;
     int nObsMin = 6;
-    int progressiveNum = 24;
+    int progressiveNum = 26;
 
     bool displayProgress = true;
     bool displayResults = false;
