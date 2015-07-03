@@ -193,6 +193,7 @@ public:
         circle(errorPlot, Point(200, 200), 50, 0.4, 1);
         circle(errorPlot, Point(200, 200), 100, 0.4, 1);
         circle(errorPlot, Point(200, 200), 150, 0.4, 1);
+        cout << "calibration dataset size is " <<  calibDataVec.size() << endl;
         for (unsigned int ptIdx = 0; ptIdx < calibDataVec.size(); ptIdx++)
         {
                 vector<Vector3d> transfModelVec;
@@ -203,7 +204,7 @@ public:
                 vector<Vector2d> projModelVec;
                 camera.projectPointCloud(transfModelVec, projModelVec);
                 
-                Mat frame = imread(calibDataVec[ptIdx].fileName, 0);
+                Mat frame = imread(calibDataVec[ptIdx].fileName, 1);
                 
                 bool outlierDetected = false;
                 for (unsigned int i = 0; i < Nx * Ny; i++)
@@ -211,13 +212,17 @@ public:
                     Vector2d p = calibDataVec[ptIdx].projection[i];
                     Vector2d pModel = projModelVec[i];
                     
-                    circle(frame, Point(p(0), p(1)), 7, 127, 1);
-                    circle(frame, Point(pModel(0), pModel(1)), 4.5, 255, 1);
+//                    circle(frame, Point(p(0), p(1)), 7, Scalar(255, 0, 0), 2);
+                    
                     Vector2d delta = p - pModel;
-                    errorPlot.at<float>(floor(delta(1)*100+ 200) , floor(delta(0)*100+ 200)) += 0.2;
-                    errorPlot.at<float>(floor(delta(1)*100+ 200), ceil(delta(0)*100+ 200)) += 0.2;
-                    errorPlot.at<float>(ceil(delta(1)*100+ 200), floor(delta(0)*100+ 200)) += 0.2;
-                    errorPlot.at<float>(ceil(delta(1)*100+ 200), ceil(delta(0)*100+ 200)) += 0.2;
+                    errorPlot.at<float>(floor(delta(1)*100 + 200),
+                            floor(delta(0)*100 + 200)) += 1;
+                    errorPlot.at<float>(floor(delta(1)*100 + 200),
+                            ceil(delta(0)*100 + 200)) += 1;
+                    errorPlot.at<float>(ceil(delta(1)*100 + 200), 
+                            floor(delta(0)*100 + 200)) += 1;
+                    errorPlot.at<float>(ceil(delta(1)*100 + 200), 
+                            ceil(delta(0)*100 + 200)) += 1;
                     double dx = delta[0] * delta[0];
                     double dy = delta[1] * delta[1];
                     if (outlierThresh != 0 and dx + dy > outlierThresh * outlierThresh)
@@ -225,6 +230,11 @@ public:
                         outlierDetected = true;
                         cout << calibDataVec[ptIdx].fileName << " # " << i << endl;
                         cout << delta.transpose() << endl;
+                        circle(frame, Point(pModel(0), pModel(1)), 5, Scalar(0, 255, 255), 2);
+                    }
+                    else
+                    {
+                        circle(frame, Point(pModel(0), pModel(1)), 2, Scalar(0, 255, 0), 2);
                     }
                     if (dx + dy > Emax)
                     {
@@ -239,7 +249,7 @@ public:
                     waitKey();
                 }
         }
-        imshow("errorPlot", errorPlot);
+        imshow("errorPlot", 1 - errorPlot);
         waitKey();
         Ex /= calibDataVec.size() * Nx * Ny;
         Ey /= calibDataVec.size() * Nx * Ny;

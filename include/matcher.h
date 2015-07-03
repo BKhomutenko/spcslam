@@ -18,8 +18,9 @@ public:
 
     enum BFType { simple, oneToOne };
 
+    //TODO change the way of constant definition
     double bfDistTh = 1000;
-    double binDelta = 1; //degrees
+    double binDelta = 3; //degrees
 
     Eigen::MatrixXi binMapL;
     Eigen::MatrixXi binMapR;
