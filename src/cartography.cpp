@@ -2,7 +2,7 @@
 
 //STL
 #include <vector>
-
+#include <algorithm>
 //Eigen
 #include <Eigen/Eigen>
 
@@ -16,6 +16,7 @@
 #include "cartography.h"
 
 using namespace ceres;
+using namespace std;
 using Eigen::Matrix;
 
 typedef Eigen::Matrix<double, 6, 6> Matrix6d;
@@ -25,16 +26,87 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Vector2d;
 
-using Eigen::RowMajor;
+int countCalls = 0; //FIXME
 
-int countCalls = 0;
-
-inline double sinc(const double x)
+bool MotionModel::Evaluate(double const* const* args,
+                double* residuals,
+                double** jac) const
 {
-    if (x==0)
-        return 1;
-    return std::sin(x)/x;
+    Transformation<double> xi0(args[0]), xi1(args[1]);
+    Transformation<double> delta = xi0.inverseCompose(xi1);
+    Vector3d v = delta.trans();
+    Vector3d w = delta.rot();
+    Vector3d vz(0, 0, v[2]);
+    v -= vz;
+    Vector3d err = w.cross(vz) - 2*v;
+    for (unsigned int i = 0; i < 3; i++)
+    {
+        residuals[i] = err[i];
+    }
+    residuals[3] = w[2];
+    
+    return true;
 }
+
+PriorPosition::PriorPosition(const Transformation<double> & xi, const Matrix6d & cov) 
+{
+    JacobiSVD<Matrix6d> svd(cov, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        
+    Vector6d lambda = svd.singularValues();
+    Matrix6d U = svd.matrixU(), V = svd.matrixV();
+    
+    for (unsigned int j = 0; j < 3; j++)
+    {
+        lambda[j] = 1./std::sqrt(lambda[j]);
+    }
+    
+    M = U * lambda.asDiagonal() * V.transpose();
+    xiPrior << xi.trans(), xi.rot();
+}
+
+bool PriorPosition::Evaluate(double const* const* args,
+                double* residuals,
+                double** jac) const
+{
+    Vector6d X(args[0]);
+    Vector6d err = M*(X - xiPrior);
+    if (jac)
+    {
+        copy(M.data(), M.data() + 36, jac[0]);
+    }
+    return true;
+}
+
+
+PriorLandmark::PriorLandmark(const Vector3d & Xprior, const Matrix3d & cov) 
+: Xprior(Xprior)
+{
+    JacobiSVD<Matrix3d> svd(cov, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        
+    Vector3d lambda = svd.singularValues();
+    Matrix3d U = svd.matrixU(), V = svd.matrixV();
+    
+    for (unsigned int j = 0; j < 3; j++)
+    {
+        lambda[j] = 1./std::sqrt(lambda[j]);
+    }
+    
+    M = U * lambda.asDiagonal() * V.transpose();
+}
+
+bool PriorLandmark::Evaluate(double const* const* args,
+                double* residuals,
+                double** jac) const
+{
+    Vector3d X(args[0]);
+    Vector3d err = M*(X - Xprior);
+    if (jac)
+    {
+        copy(M.data(), M.data() + 9, jac[0]);
+    }
+    return true;
+}
+
 
 OdometryError::OdometryError(const Vector3d X, const Vector2d pt,
         const Transformation<double> & TbaseCam,
@@ -113,28 +185,14 @@ bool OdometryError::Evaluate(double const* const* args,
         Eigen::Matrix<double, 2, 3> J;
         camera->projectionJacobian(Xtr, J);
 
-        Matrix3d Rco = RcamBase * RbaseOrig;
-
+        Matrix3d RcamOrig = RcamBase * RbaseOrig;
 
         // dp / dxi
-        Eigen::Matrix<double, 3, 3> LxiInv;
+        Matrix3d LxiInv = interOmegaRot(rotOrigBase);
 
-        double theta = rotOrigBase.norm();
-        if ( theta != 0)
-        {
-            Matrix3d uhat = hat<double>(rotOrigBase / theta);
-            LxiInv = Matrix3d::Identity() +
-                theta/2*sinc(theta/2)*uhat +
-                (1 - sinc(theta))*uhat*uhat;
-        }
-        else
-        {
-            LxiInv = Matrix3d::Identity();
-        }
-
-        Eigen::Matrix<double, 2, 3, RowMajor> dpdxi1 = -J * Rco;
+        Eigen::Matrix<double, 2, 3, RowMajor> dpdxi1 = -J * RcamOrig;
         Eigen::Matrix<double, 2, 3, RowMajor>  dpdxi2; // = (Eigen::Matrix<double, 2, 3, RowMajor> *) jac[2];
-        dpdxi2 = J*hat(Xtr)*Rco*LxiInv;
+        dpdxi2 = J*hat(Xtr)*RcamOrig*LxiInv;
         copy(dpdxi1.data(), dpdxi1.data() + 6, jac[0]);
         copy(dpdxi2.data(), dpdxi2.data() + 6, jac[1]);
     }
@@ -147,12 +205,12 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
                     double* residuals,
                     double** jac) const
 {
-    Vector3d rot(args[2]);
-    Matrix3d RbaseOrig = rotationMatrix<double>(-rot);
-    Vector3d Pob(args[1]);
+    Vector3d rotOrigBase(args[2]);
+    Matrix3d RbaseOrig = rotationMatrix<double>(-rotOrigBase);
+    Vector3d PorigBase(args[1]);
     Vector3d X(args[0]);
 
-    X = RcamBase * (RbaseOrig * (X - Pob)) + PcamBase;
+    X = RcamBase * (RbaseOrig * (X - PorigBase)) + PcamBase;
     Vector2d point;
     camera->projectPoint(X, point);
     residuals[0] = point[0] - u;
@@ -164,31 +222,18 @@ bool ReprojectionErrorStereo::Evaluate(double const* const* args,
         Eigen::Matrix<double, 2, 3> J;
         camera->projectionJacobian(X, J);
 
-        Matrix3d Rco = RcamBase * RbaseOrig;
+        Matrix3d RcamOrig = RcamBase * RbaseOrig;
 
         // dp / dX
-        Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * Rco;
+        Eigen::Matrix<double, 2, 3, RowMajor> dpdX = J * RcamOrig;
         copy(dpdX.data(), dpdX.data() + 6, jac[0]);
 
         // dp / dxi
-        Eigen::Matrix<double, 3, 3> LxiInv;
-
-        double theta = rot.norm();
-        if ( theta != 0)
-        {
-            Matrix3d uhat = hat<double>(rot / theta);
-            LxiInv = Matrix3d::Identity() +
-                theta/2*sinc(theta/2)*uhat +
-                (1 - sinc(theta))*uhat*uhat;
-        }
-        else
-        {
-            LxiInv = Matrix3d::Identity();
-        }
+        Matrix3d LxiInv = interOmegaRot(rotOrigBase);
 
         Eigen::Matrix<double, 2, 3, RowMajor>  dpdxi2; // = (Eigen::Matrix<double, 2, 3, RowMajor> *) jac[2];
         dpdX *= -1;
-        dpdxi2 = J*hat(X)*Rco*LxiInv;
+        dpdxi2 = J*hat(X)*RcamOrig*LxiInv;
         copy(dpdX.data(), dpdX.data() + 6, jac[1]);
         copy(dpdxi2.data(), dpdxi2.data() + 6, jac[2]);
     }

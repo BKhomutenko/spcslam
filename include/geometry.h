@@ -11,8 +11,6 @@ All necessary geometric transformations
 //Eigen
 #include <Eigen/Eigen>
 
-
-
 template<typename T>
 using Vector2 = Eigen::Matrix<T, 2, 1>; 
 template<typename T>
@@ -21,7 +19,14 @@ template<typename T>
 using Matrix3 = Eigen::Matrix<T, 3, 3>; 
 
 using namespace std;
-//TODO think about how to perform the combination of these transformations
+
+template<typename T>
+inline T sinc(const T & x)
+{
+    if (x == T(0.))
+        return T(1.);
+    return sin(x)/x;
+}
 
 template<typename T>
 Matrix3<T> rotationMatrix(const Vector3<T> & v)
@@ -68,6 +73,55 @@ inline Matrix3<T> hat(const Vector3<T> & u)
     M << 0, -u(2), u(1),   u(2), 0, -u(0),   -u(1), u(0), 0;
     return M;
 }
+
+template<typename T>
+Matrix3<T> interRotOmega(const Vector3<T> & v)
+{
+    Matrix3<T> B;
+    T theta = v.norm();
+    if (theta < 1e-5)
+    {
+        Vector3<T> vHalf = v / 2;
+	    B <<        T(1.),    vHalf(2),    -vHalf(1),
+	            -vHalf(2),       T(1.),     vHalf(0),
+	             vHalf(1),   -vHalf(0),        T(1.);
+    }
+    else
+    {
+        Matrix3<T> uhat = hat<T>(v / theta);
+        T thetaHalf = theta/2;
+        T S1 = sinc(theta);
+        T S2 = sinc(thetaHalf);
+        T K2 = T(1.) - S1 / (S2 * S2);
+        B = Matrix3<T>::Identity() - thetaHalf*uhat + K2*uhat*uhat;
+    }
+    return B;
+}
+
+template<typename T>
+Matrix3<T> interOmegaRot(const Vector3<T> & v)
+{
+    Matrix3<T> B;
+    T theta = v.norm();
+    if (theta < 1e-5)
+    {
+        Vector3<T> vHalf = v / T(2.);
+	    B <<        T(1.),   -vHalf(2),     vHalf(1),
+	             vHalf(2),       T(1.),    -vHalf(0),
+	             -vHalf(1),   vHalf(0),        T(1.);
+    }
+    else
+    {
+        Matrix3<T> uhat = hat<T>(v / theta);
+        T thetaHalf = theta / T(2.);
+        T K1 = sinc(thetaHalf);
+        K1 = thetaHalf * K1 * K1;
+        T K2 = (T(1.) - sinc(theta));
+        B = Matrix3<T>::Identity() + K1*uhat + K2*uhat*uhat;
+    }
+    return B;
+}
+
 
 
 #include "geometry/quaternion.h"

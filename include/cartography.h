@@ -26,6 +26,12 @@ using Eigen::Matrix;
 using Eigen::Vector2d;
 using Eigen::Vector3d;
 using Eigen::Matrix3d;
+using Eigen::RowMajor;
+using Eigen::JacobiSVD;
+
+typedef Eigen::Matrix<double, 6, 1> Vector6d;
+typedef Eigen::Matrix<double, 6, 6> Matrix6d;
+
 
 struct Observation
 {
@@ -57,6 +63,44 @@ struct LandMark
 
     //All Vec6drealted measurements
     vector<Observation> observations;
+};
+
+struct MotionModel : public ceres::SizedCostFunction<4, 6, 6>
+{
+    // args : double lm[3], double pose[6]
+    bool Evaluate(double const* const* args,
+                    double* residuals,
+                    double** jac) const;
+};
+
+struct PriorPosition : public ceres::SizedCostFunction<6, 6>
+{
+    PriorPosition(const Transformation<double> & xiPrior, const Matrix6d & cov);
+
+    // args : double lm[3], double pose[6]
+    bool Evaluate(double const* const* args,
+                    double* residuals,
+                    double** jac) const;
+
+
+    //Transformation information
+    Vector6d xiPrior;
+    Matrix<double, 6, 6, RowMajor> M;
+};
+
+struct PriorLandmark : public ceres::SizedCostFunction<3, 3>
+{
+    PriorLandmark(const Vector3d & Xprior, const Matrix3d & cov);
+    
+    // args : double lm[3], double pose[6]
+    bool Evaluate(double const* const* args,
+                    double* residuals,
+                    double** jac) const;
+
+
+    //Transformation information
+    Vector3d Xprior;
+    Matrix<double, 3, 3, RowMajor> M;
 };
 
 struct ReprojectionErrorStereo : public ceres::SizedCostFunction<2, 3, 3, 3>
