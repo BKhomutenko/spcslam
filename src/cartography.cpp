@@ -17,7 +17,6 @@
 
 using namespace ceres;
 using namespace std;
-using Eigen::Matrix;
 
 typedef Eigen::Matrix<double, 6, 6> Matrix6d;
 typedef Eigen::Matrix<double, 6, 1> Vector6d;
@@ -32,19 +31,53 @@ bool MotionModel::Evaluate(double const* const* args,
                 double* residuals,
                 double** jac) const
 {
-    Transformation<double> xi0(args[0]), xi1(args[1]);
-    Transformation<double> delta = xi0.inverseCompose(xi1);
+    Transformation<double> xiFirst(args[0]), xiSecond(args[1]);
+    Transformation<double> delta = xiFirst.inverseCompose(xiSecond);
     Vector3d v = delta.trans();
     Vector3d w = delta.rot();
     Vector3d vz(0, 0, v[2]);
-    v -= vz;
-    Vector3d err = w.cross(vz) - 2*v;
+    Vector3d vOrth = v - vz;
+    Vector3d err = w.cross(vz) - 2*vOrth;
     for (unsigned int i = 0; i < 3; i++)
     {
         residuals[i] = err[i];
     }
-    residuals[3] = w[2];
     
+    residuals[3] = w[2];
+    if (jac)
+    {
+        Matrix3d RfirstBase = xiFirst.rotMat().transpose();
+        Matrix3d Bdelta = interRotOmega(w);
+        Matrix3d BfirstInv = interOmegaRot(xiFirst.rot());
+        Matrix3d BsecondInv = interOmegaRot(xiSecond.rot());
+        Matrix3d Phat = hat(v);
+        
+        Eigen::Matrix<double, 4, 6> JacErrDelta;
+        JacErrDelta.setZero();
+        JacErrDelta(0, 0) = -2;
+        JacErrDelta(1, 1) = -2;
+        JacErrDelta(0, 2) = w[1];
+        JacErrDelta(1, 2) = -w[0];
+        JacErrDelta.topRightCorner(3, 3) = -Phat;
+        JacErrDelta(3, 5) = 1;
+        
+        if (jac[0])
+        {
+            Matrix6d JacDeltaFirst;
+            JacDeltaFirst << -RfirstBase, Phat*BfirstInv, Matrix6d::Zero(), -Bdelta*RfirstBase*BfirstInv;
+            
+            Eigen::Matrix<double, 4, 6, RowMajor> JacMat = JacErrDelta * JacDeltaFirst;
+            copy(JacMat.data(), JacMat.data() + 24, jac[0]);
+        }
+        if (jac[1])
+        {
+            Matrix6d JacDeltaSecond;
+            JacDeltaSecond << -RfirstBase, Matrix6d::Zero(), Matrix6d::Zero(), -Bdelta*RfirstBase*BfirstInv;
+            
+            Eigen::Matrix<double, 4, 6, RowMajor> JacMat = JacErrDelta * JacDeltaSecond;
+            copy(JacMat.data(), JacMat.data() + 24, jac[1]);
+        }
+    }
     return true;
 }
 
