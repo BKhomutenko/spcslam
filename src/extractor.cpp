@@ -50,15 +50,24 @@ void Extractor::operator()(const cv::Mat & img, std::vector<Feature> & featuresV
     for (int i = 0; i < N; i++)
     {
         const cv::KeyPoint & cvkp = cvKpVec[i];
-        int maxU = binMaps[camId-1].rows() - 1;
-        int u = round(cvkp.pt.x);
-        u = min(u, maxU);
-        u = max(u, 0);
-        int maxV = binMaps[camId-1].cols() - 1;
-        int v = round(cvkp.pt.y);
-        v = min(v, maxV);
-        v = max(v, 0);
-        if (binMaps[camId-1](u, v) != 0)
+        if (camId != -1) //FIXME 
+        {
+            int maxU = binMaps[camId-1].rows() - 1;
+            int u = round(cvkp.pt.x);
+            u = min(u, maxU);
+            u = max(u, 0);
+            int maxV = binMaps[camId-1].cols() - 1;
+            int v = round(cvkp.pt.y);
+            v = min(v, maxV);
+            v = max(v, 0);
+            if (binMaps[camId-1](u, v) != 0)
+            {
+                float * ptr = (float *)descriptors.row(i).data;
+                Feature kp(cvkp.pt.x, cvkp.pt.y, ptr, cvkp.size, cvkp.angle);
+                featuresVec.push_back(kp);
+            }
+        }
+        else
         {
             float * ptr = (float *)descriptors.row(i).data;
             Feature kp(cvkp.pt.x, cvkp.pt.y, ptr, cvkp.size, cvkp.angle);
@@ -346,7 +355,7 @@ void Extractor::computeMaps()
     int width = 1296;
     int height = 966;
 
-    for (int map = 0; map <= 1; map++)
+    for (int mapIdx = 0; mapIdx <= 1; mapIdx++)
     {
         Eigen::MatrixXi m;
         m.resize(width, height);
@@ -356,7 +365,7 @@ void Extractor::computeMaps()
         vector<double> vRanges(nDivVertical + 1);
         vector<int> subArea(nDivHorizontal * nDivVertical, 0);
         int maskArea = 0;
-        double binWidth = (uBounds[map][1] - uBounds[map][0]) / (double)nDivHorizontal;
+        double binWidth = (uBounds[mapIdx][1] - uBounds[mapIdx][0]) / (double)nDivHorizontal;
         double binHeight = (vBounds[1] - vBounds[0]) / (double) nDivVertical;
 
         for (int i = 0; i < nDivVertical + 1; i++)
@@ -366,7 +375,7 @@ void Extractor::computeMaps()
         }
         for (int i = 0; i < nDivHorizontal + 1; i++)
         {
-            uRanges[i] = uBounds[map][0] + binWidth * i;
+            uRanges[i] = uBounds[mapIdx][0] + binWidth * i;
             //cout << "uRange: " << uRanges[i] << endl;
         }
 
@@ -378,12 +387,12 @@ void Extractor::computeMaps()
                 int indexV = 0;
 
 
-                if ( (u-circle1[map][0]) * (u-circle1[map][0]) +
-                     (v-circle1[map][1]) * (v-circle1[map][1])
-                     <= circle1[map][2] * circle1[map][2] and
-                     (u-circle2[map][0]) * (u-circle2[map][0]) +
-                     (v-circle2[map][1]) * (v-circle2[map][1])
-                     <= circle2[map][2] * circle2[map][2] and
+                if ( (u-circle1[mapIdx][0]) * (u-circle1[mapIdx][0]) +
+                     (v-circle1[mapIdx][1]) * (v-circle1[mapIdx][1])
+                     <= circle1[mapIdx][2] * circle1[mapIdx][2] and
+                     (u-circle2[mapIdx][0]) * (u-circle2[mapIdx][0]) +
+                     (v-circle2[mapIdx][1]) * (v-circle2[mapIdx][1])
+                     <= circle2[mapIdx][2] * circle2[mapIdx][2] and
                      v >= vBounds[0] and v <= vBounds[1] )
                 {
                     for (int i = 0; i < nDivVertical; i++)
@@ -404,7 +413,7 @@ void Extractor::computeMaps()
                     }
 
                     int bin = indexV * nDivHorizontal + indexU;
-                    binMaps[map](u, v) = bin;
+                    binMaps[mapIdx](u, v) = bin;
                     subArea.at(bin-1) ++;
                     maskArea ++;
                 }
@@ -430,14 +439,14 @@ void Extractor::computeMaps()
 
         featureDistributions.push_back(fDist);
 
-        if (map == 0)
+        if (mapIdx == 0)
         {
             cv::Mat image = cv::Mat::zeros(height/2, width/2, CV_16UC1);
             for (int u = 0; u < width/2; u++)
             {
                 for (int v = 0; v < height/2; v++)
                 {
-                    double value = (double)binMaps[map](u*2, v*2) * 65535 / (nDivVertical * nDivHorizontal);
+                    double value = (double)binMaps[mapIdx](u*2, v*2) * 65535 / (nDivVertical * nDivHorizontal);
                     image.at<short>(v,u) = (int)value;
                 }
             }

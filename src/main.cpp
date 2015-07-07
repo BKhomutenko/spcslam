@@ -14,29 +14,29 @@ bool saveDebugImages = false;
 bool displayResults = false;
 string debugId = "3";
 
-vector<Eigen::Vector3d> oD_modelLM, oD_inlierLM, oD_outlierLM;
-vector<Eigen::Vector2d> oD_inlierFeat, oD_outlierFeat;
+extern vector<Eigen::Vector3d> oD_modelLM, oD_inlierLM, oD_outlierLM;
+extern vector<Eigen::Vector2d> oD_inlierFeat, oD_outlierFeat;
 
-void projectLandmarks(StereoCartography & map, vector<Feature> & featuresLM1,
+void projectLandmarks(StereoCartography & cartograph, vector<Feature> & featuresLM1,
                       vector<Feature> & featuresLM2, vector<int> & indexList, int & nSTMprojected)
 {
-    int step = map.trajectory.size() - 1;
-    int nSTM = map.STM.size();
-    int nWM = map.WM.size();
+    int step = cartograph.trajectory.size() - 1;
+    int nSTM = cartograph.STM.size();
+    int nWM = cartograph.WM.size();
     vector<Eigen::Vector3d> point3D, point3Daux;
     vector<Eigen::Vector2d> point2D1, point2D2;
 
     // add 3D points for projection - STM
     for (int j = 0; j < nSTM; j++)
     {
-        point3Daux.push_back(map.STM[j].X);
+        point3Daux.push_back(cartograph.STM[j].X);
     }
-    map.trajectory[step].inverseTransform(point3Daux, point3Daux);
+    cartograph.trajectory[step].inverseTransform(point3Daux, point3Daux);
     for (int j = 0; j < nSTM; j++)
     {
         if (point3Daux[j](2) > 0.5)
         {
-            point3D.push_back(map.STM[j].X);
+            point3D.push_back(cartograph.STM[j].X);
             indexList.push_back(j);
         }
     }
@@ -46,26 +46,26 @@ void projectLandmarks(StereoCartography & map, vector<Feature> & featuresLM1,
     point3Daux.clear();
     for (int j = 0; j < nWM; j++)
     {
-        point3Daux.push_back(map.WM[j].X);
+        point3Daux.push_back(cartograph.WM[j].X);
     }
-    map.trajectory[step].inverseTransform(point3Daux, point3Daux);
+    cartograph.trajectory[step].inverseTransform(point3Daux, point3Daux);
     for (int j = 0; j < nWM; j++)
     {
         if (point3Daux[j](2) > 0.5)
         {
-            point3D.push_back(map.WM[j].X);
+            point3D.push_back(cartograph.WM[j].X);
             indexList.push_back(j);
         }
     }
 
     // project points
-    map.projectPointCloud(point3D, point2D1, point2D2, step);
+    cartograph.projectPointCloud(point3D, point2D1, point2D2, step);
 
     // create features from projected points - STM
     for (int j = 0; j < nSTMprojected; j++)
     {
-        Feature f1(point2D1[j], map.STM[indexList[j]].d, 1, 1);
-        Feature f2(point2D2[j], map.STM[indexList[j]].d, 1, 1); //size and angle?
+        Feature f1(point2D1[j], cartograph.STM[indexList[j]].d, 1, 1);
+        Feature f2(point2D2[j], cartograph.STM[indexList[j]].d, 1, 1); //size and angle?
         featuresLM1.push_back(f1);
         featuresLM2.push_back(f2);
     }
@@ -73,31 +73,31 @@ void projectLandmarks(StereoCartography & map, vector<Feature> & featuresLM1,
     // create features from projected points - WM
     for (int j = nSTMprojected; j < point3D.size(); j++)
     {
-        Feature f1(point2D1[j], map.WM[indexList[j]].d, 1, 1);
-        Feature f2(point2D2[j], map.WM[indexList[j]].d, 1, 1); //size and angle?
+        Feature f1(point2D1[j], cartograph.WM[indexList[j]].d, 1, 1);
+        Feature f2(point2D2[j], cartograph.WM[indexList[j]].d, 1, 1); //size and angle?
         featuresLM1.push_back(f1);
         featuresLM2.push_back(f2);
     }
 }
 
-void updateObservations(StereoCartography & map, vector<Feature> & featuresVec1,
+void updateObservations(StereoCartography & cartograph, vector<Feature> & featuresVec1,
                         vector<Feature> & featuresVec2, vector<int> & matchesR1,
                         vector<int> & matchesR2, vector<int> & indexList, int & nSTMprojected)
 {
-    int step = map.trajectory.size() - 1;
+    int step = cartograph.trajectory.size() - 1;
     // update observations - STM
     for(int j = 0; j < nSTMprojected; j++)
     {
         if (matchesR1[j] != -1)
         {
             Observation o1(featuresVec1[matchesR1[j]].pt, step, CameraID::LEFT);
-            map.STM[indexList[j]].observations.push_back(o1);
-            map.STM[indexList[j]].d = featuresVec1[matchesR1[j]].desc;
+            cartograph.STM[indexList[j]].observations.push_back(o1);
+            cartograph.STM[indexList[j]].d = featuresVec1[matchesR1[j]].desc;
         }
         if (matchesR2[j] != -1)
         {
             Observation o2(featuresVec2[matchesR2[j]].pt, step, CameraID::RIGHT);
-            map.STM[indexList[j]].observations.push_back(o2);
+            cartograph.STM[indexList[j]].observations.push_back(o2);
         }
     }
 
@@ -107,61 +107,61 @@ void updateObservations(StereoCartography & map, vector<Feature> & featuresVec1,
         if (matchesR1[j] != -1)
         {
             Observation o1(featuresVec1[matchesR1[j]].pt, step, CameraID::LEFT);
-            map.WM[indexList[j]].observations.push_back(o1);
-            map.WM[indexList[j]].d = featuresVec1[matchesR1[j]].desc;
+            cartograph.WM[indexList[j]].observations.push_back(o1);
+            cartograph.WM[indexList[j]].d = featuresVec1[matchesR1[j]].desc;
         }
         if (matchesR2[j] != -1)
         {
             Observation o2(featuresVec2[matchesR2[j]].pt, step, CameraID::RIGHT);
-            map.WM[indexList[j]].observations.push_back(o2);
+            cartograph.WM[indexList[j]].observations.push_back(o2);
         }
     }
 }
 
-void firstMemoryUpdate(StereoCartography & map, int allowedGapSize, int nObsMin)
+void firstMemoryUpdate(StereoCartography & cartograph, int allowedGapSize, int nObsMin)
 {
     vector<LandMark> tempSTM, toWM;
-    int nSTM = map.STM.size();
-    int nWM = map.WM.size();
-    int step = map.trajectory.size() - 1;
+    int nSTM = cartograph.STM.size();
+    int nWM = cartograph.WM.size();
+    int step = cartograph.trajectory.size() - 1;
 
     for (int j = 0; j < nSTM; j++)
     {
-        int nObs = map.STM[j].observations.size();
+        int nObs = cartograph.STM[j].observations.size();
         if (nObs >= nObsMin)
         {
-            toWM.push_back(map.STM[j]);
+            toWM.push_back(cartograph.STM[j]);
         }
         else
         {
-            int lastOb = map.STM[j].observations.back().poseIdx;
+            int lastOb = cartograph.STM[j].observations.back().poseIdx;
             if (lastOb >= step - allowedGapSize)
             {
-                tempSTM.push_back(map.STM[j]);
+                tempSTM.push_back(cartograph.STM[j]);
             }
         }
     }
-    map.STM = tempSTM;
+    cartograph.STM = tempSTM;
 
     // update memory: WM, LTM
     vector<LandMark> tempWM;
     for (int j = 0; j < nWM; j++)
     {
-        int lastOb = map.WM[j].observations.back().poseIdx;
+        int lastOb = cartograph.WM[j].observations.back().poseIdx;
         if (lastOb >= step - allowedGapSize - 5)
         {
-            tempWM.push_back(map.WM[j]);
+            tempWM.push_back(cartograph.WM[j]);
         }
         else
         {
-            map.LTM.push_back(map.WM[j]);
+            cartograph.LTM.push_back(cartograph.WM[j]);
         }
     }
-    map.WM = tempWM;
-    map.WM.insert(map.WM.end(), toWM.begin(), toWM.end());
+    cartograph.WM = tempWM;
+    cartograph.WM.insert(cartograph.WM.end(), toWM.begin(), toWM.end());
 }
 
-void findCandidates(StereoCartography & map, vector<Feature> & featuresVec1,
+void findCandidates(StereoCartography & cartograph, vector<Feature> & featuresVec1,
                     vector<Feature> & featuresVec2, vector<int> & matchesR1, vector<int> & matchesR2,
                     vector<Feature> & featuresVecC1, vector<Feature> & featuresVecC2)
 {
@@ -198,11 +198,11 @@ void findCandidates(StereoCartography & map, vector<Feature> & featuresVec1,
 }
 
 void secondMemoryUpdate(vector<Feature> & featuresVecC1, vector<Feature> & featuresVecC2,
-                        StereoCartography & map)
+                        StereoCartography & cartograph)
 {
-    int step = map.trajectory.size() - 1;
+    int step = cartograph.trajectory.size() - 1;
     vector<int> matches;
-    map.matcher.stereoMatch_2(featuresVecC1, featuresVecC2, matches);
+    cartograph.matcher.stereoMatch_2(featuresVecC1, featuresVecC2, matches);
 
     // create vectors of 2D points and descriptors from matched features
     vector<Eigen::Vector2d> pointsVec1, pointsVec2;
@@ -219,10 +219,10 @@ void secondMemoryUpdate(vector<Feature> & featuresVecC1, vector<Feature> & featu
 
     // reconstruct point cloud (stereo frame)
     vector<Eigen::Vector3d> pointCloud;
-    map.stereo.reconstructPointCloud(pointsVec1, pointsVec2, pointCloud);
+    cartograph.stereo.reconstructPointCloud(pointsVec1, pointsVec2, pointCloud);
 
     // transform to world frame
-    map.trajectory[step].transform(pointCloud, pointCloud);
+    cartograph.trajectory[step].transform(pointCloud, pointCloud);
 
     // create landmarks and update STM (2)
     for (int j = 0; j < pointCloud.size(); j++)
@@ -238,22 +238,22 @@ void secondMemoryUpdate(vector<Feature> & featuresVecC1, vector<Feature> & featu
         L.observations = oVec;
         L.d = descriptorsVec[j];
 
-        map.STM.push_back(L);
+        cartograph.STM.push_back(L);
     }
 }
 
-void saveData(StereoCartography & map,  int progressiveNum)
+void saveData(StereoCartography & cartograph,  int progressiveNum)
 {
     ofstream myfile1("../../VM_shared/cloud_" + to_string(progressiveNum) + ".txt");
     if (myfile1.is_open())
     {
-        for (int i = 0; i < map.LTM.size(); i++)
+        for (int i = 0; i < cartograph.LTM.size(); i++)
         {
-            myfile1 << map.LTM[i].X << "\n";
+            myfile1 << cartograph.LTM[i].X << "\n";
         }
-        for (int i = 0; i < map.WM.size(); i++)
+        for (int i = 0; i < cartograph.WM.size(); i++)
         {
-            myfile1 << map.WM[i].X << "\n";
+            myfile1 << cartograph.WM[i].X << "\n";
         }
         myfile1.close();
         cout << endl << endl << "Map saved to file, number: " << progressiveNum << endl;
@@ -263,16 +263,17 @@ void saveData(StereoCartography & map,  int progressiveNum)
     ofstream myfile2("../../VM_shared/trajectory_" + to_string(progressiveNum) + ".txt");
     if (myfile2.is_open())
     {
-        for (int i = 0; i < map.trajectory.size(); i++)
+        for (int i = 0; i < cartograph.trajectory.size(); i++)
         {
-            myfile2 << map.trajectory[i].trans() << "\n";
+            myfile2 << cartograph.trajectory[i].trans() << "\n";
         }
         myfile2.close();
         cout << "Trajectory saved to file, number: " << progressiveNum << endl;
     }
 }
 
-void displayOdometryDebug(StereoCartography & map, int step, int firstImage, cv::Mat & image1_new, cv::Mat & image1_ex)
+void displayOdometryDebug(StereoCartography & cartograph, int step, int firstImage,
+        cv::Mat & image1_new, cv::Mat & image1_ex)
 {
     double resizeRatio = 1;
     cv::Scalar orange(  0, 150, 250);
@@ -284,12 +285,12 @@ void displayOdometryDebug(StereoCartography & map, int step, int firstImage, cv:
 
     vector<Eigen::Vector2d> oD_modelLMpt, oD_inlierLMpt, oD_outlierLMpt, aux,
                             oD_modelLMpt_ex, oD_inlierLMpt_ex, oD_outlierLMpt_ex;
-    map.projectPointCloud(oD_modelLM, oD_modelLMpt, aux, step);
-    map.projectPointCloud(oD_modelLM, oD_modelLMpt_ex, aux, step - 1);
-    map.projectPointCloud(oD_inlierLM, oD_inlierLMpt, aux, step);
-    map.projectPointCloud(oD_inlierLM, oD_inlierLMpt_ex, aux, step - 1);
-    map.projectPointCloud(oD_outlierLM, oD_outlierLMpt, aux, step);
-    map.projectPointCloud(oD_outlierLM, oD_outlierLMpt_ex, aux, step - 1);
+    cartograph.projectPointCloud(oD_modelLM, oD_modelLMpt, aux, step);
+    cartograph.projectPointCloud(oD_modelLM, oD_modelLMpt_ex, aux, step - 1);
+    cartograph.projectPointCloud(oD_inlierLM, oD_inlierLMpt, aux, step);
+    cartograph.projectPointCloud(oD_inlierLM, oD_inlierLMpt_ex, aux, step - 1);
+    cartograph.projectPointCloud(oD_outlierLM, oD_outlierLMpt, aux, step);
+    cartograph.projectPointCloud(oD_outlierLM, oD_outlierLMpt_ex, aux, step - 1);
 
     cv::resize(image1_new, image1_new, cv::Size(0,0), resizeRatio, resizeRatio);
     cv::resize(image1_ex, image1_ex, cv::Size(0,0), resizeRatio, resizeRatio);
@@ -314,8 +315,10 @@ void displayOdometryDebug(StereoCartography & map, int step, int firstImage, cv:
 
     if (saveDebugImages)
     {
-        string imageFile_new = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_" + debugId + "/debug_" + to_string(firstImage + step) + "_2.png";
-        string imageFile_ex = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_" + debugId + "/debug_" + to_string(firstImage + step) + "_1.png";
+        string imageFile_new = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_"
+                + debugId + "/debug_" + to_string(firstImage + step) + "_2.png";
+        string imageFile_ex = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_" 
+                + debugId + "/debug_" + to_string(firstImage + step) + "_1.png";
         imwrite(imageFile_new, image1_new);
         imwrite(imageFile_ex, image1_ex);
     }
@@ -353,7 +356,10 @@ int main()
     Transformation<double> t1(0, 0, 0, 0, 0, 0);
     Transformation<double> t2(0.788019, 0.00459233, -0.0203431, -0.00243736, 0.0859855, 0.000375454);
 
-    StereoCartography map(t1, t2, cam1, cam2);
+    Extractor extractor(2000, 2, 2, false, true);
+    extractor.setType(FeatureType::SURF);
+    
+    StereoCartography cartograph(t1, t2, cam1, cam2);
 
     cv::Scalar color1(255), color2(255);
 
@@ -380,8 +386,8 @@ int main()
                         featuresLM1, featuresLM2;
 
         // extract features
-        map.extractor(image1, featuresVec1, 1);
-        map.extractor(image2, featuresVec2, 2);
+        extractor(image1, featuresVec1, 1);
+        extractor(image2, featuresVec2, 2);
 
         time4 = clock();
         dt2 = double(time4 - time1) / CLOCKS_PER_SEC;
@@ -391,7 +397,7 @@ int main()
 
         if (step == 0)
         {
-            map.trajectory.push_back(Transformation<double>());
+            cartograph.trajectory.push_back(Transformation<double>());
             //featuresVecC1.swap(featuresVec1);
             //featuresVecC2.swap(featuresVec2);
             featuresVecC1.resize(N1);
@@ -407,61 +413,61 @@ int main()
             {
                 case 1:
                 {
-                    Transformation<double> tn = map.estimateOdometry(featuresVec1);
+                    Transformation<double> tn = cartograph.estimateOdometry(featuresVec1);
                     newPose.setParam(tn.trans(), tn.rot());
                 }
                 case 2:
                 {
-                    Transformation<double> tn = map.estimateOdometry_2(featuresVec1);
+                    Transformation<double> tn = cartograph.estimateOdometry_2(featuresVec1);
                     newPose.setParam(tn.trans(), tn.rot());
                 }
                 case 3:
                 {
-                    Transformation<double> tn = map.estimateOdometry_3(featuresVec1);
+                    Transformation<double> tn = cartograph.estimateOdometry_3(featuresVec1);
                     newPose.setParam(tn.trans(), tn.rot());
                 }
             }
-            map.trajectory.push_back(newPose);
+            cartograph.trajectory.push_back(newPose);
 
             if (odometryDebug)
             {
                 string imageFile1_ex = datasetPath + prefix1 + to_string(firstImage + step - 1) + extension;
                 cv::Mat image1_ex = cv::imread(imageFile1_ex, 0);
                 cv::Mat image1_new = cv::imread(imageFile1, 0);
-                displayOdometryDebug(map, step, firstImage, image1_new, image1_ex);
+                displayOdometryDebug(cartograph, step, firstImage, image1_new, image1_ex);
             }
 
             // create reprojections of landmarks
             vector<Feature> featuresLM1, featuresLM2;
             vector<int> indexList;
             int nSTMprojected;
-            projectLandmarks(map, featuresLM1, featuresLM2, indexList, nSTMprojected);
+            projectLandmarks(cartograph, featuresLM1, featuresLM2, indexList, nSTMprojected);
 
             // match reprojections with extracted features
             vector<int> matchesR1, matchesR2;
-            map.matcher.matchReprojected(featuresLM1, featuresVec1, matchesR1, 2.5);
-            map.matcher.matchReprojected(featuresLM2, featuresVec2, matchesR2, 2.5);
+            cartograph.matcher.matchReprojected(featuresLM1, featuresVec1, matchesR1, 2.5);
+            cartograph.matcher.matchReprojected(featuresLM2, featuresVec2, matchesR2, 2.5);
 
             // update observations
-            updateObservations(map, featuresVec1, featuresVec2, matchesR1,
+            updateObservations(cartograph, featuresVec1, featuresVec2, matchesR1,
                                matchesR2, indexList, nSTMprojected);
 
             // manage landmarks that are already in memory
-            firstMemoryUpdate(map, allowedGapSize, nObsMin);
+            firstMemoryUpdate(cartograph, allowedGapSize, nObsMin);
 
             // create vectors of candidates for new landmarks
-            findCandidates(map, featuresVec1, featuresVec2, matchesR1, matchesR2,
+            findCandidates(cartograph, featuresVec1, featuresVec2, matchesR1, matchesR2,
                            featuresVecC1, featuresVecC2);
         }
 
         // create new landmarks and add them to STM
-        secondMemoryUpdate(featuresVecC1, featuresVecC2, map);
+        secondMemoryUpdate(featuresVecC1, featuresVecC2, cartograph);
 
         time2 = clock();
         dt3 = double(time2 - time4) / CLOCKS_PER_SEC;
-        cout << "\n\nstep: " << step << "  Odometry: " << map.trajectory.back()
-             << "\nstep: " << step << "  STM: " << map.STM.size()  << "   WM: "
-             << map.WM.size()  << "   LTM: " << map.LTM.size()
+        cout << "\n\nstep: " << step << "  Odometry: " << cartograph.trajectory.back()
+             << "\nstep: " << step << "  STM: " << cartograph.STM.size()  << "   WM: "
+             << cartograph.WM.size()  << "   LTM: " << cartograph.LTM.size()
              << "\nstep: " << step << "  Features left: " << featuresVec1.size()
              << "   Features right: " << featuresVec2.size()
              << "\nstep: " << step << "  Images time: " << dt1
@@ -472,7 +478,7 @@ int main()
         {
             bool firstBA = (step == firstStepBA);
             // perform bundle adjustment
-            map.improveTheMap(firstBA);
+            cartograph.improveTheMap(firstBA);
             time3 = clock();
             dt4 = double(time3 - time2) / CLOCKS_PER_SEC;
             cout << "   BA time: " << dt4;
@@ -496,7 +502,8 @@ int main()
             }
             if (saveDebugImages)
             {
-                string imageFile = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_" + debugId + "/debug_" + to_string(firstImage + step) + "_0.png";
+                string imageFile = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_" 
+                        + debugId + "/debug_" + to_string(firstImage + step) + "_0.png";
                 cv::imwrite(imageFile, image1);
             }
             else
@@ -507,7 +514,7 @@ int main()
         }
     }
 
-    saveData(map, progressiveNum);
+    saveData(cartograph, progressiveNum);
 
     end = clock();
     dt6 = double(end - begin) / CLOCKS_PER_SEC;
@@ -530,32 +537,32 @@ int main()
 
             vector<Eigen::Vector3d> Point3D;
             vector<Eigen::Vector2d> obs1, obs2;
-            for (int j = 0; j < map.LTM.size(); j++)
+            for (int j = 0; j < cartograph.LTM.size(); j++)
             {
                 bool added = false;
-                for (int k = 0; k < map.LTM[j].observations.size(); k++)
+                for (int k = 0; k < cartograph.LTM[j].observations.size(); k++)
                 {
-                    if (map.LTM[j].observations[k].poseIdx == step)
+                    if (cartograph.LTM[j].observations[k].poseIdx == step)
                     {
                         if (added == false)
                         {
-                            Point3D.push_back(map.LTM[j].X);
+                            Point3D.push_back(cartograph.LTM[j].X);
                             added = true;
                         }
-                        if (map.LTM[j].observations[k].cameraId == CameraID::LEFT)
+                        if (cartograph.LTM[j].observations[k].cameraId == CameraID::LEFT)
                         {
-                            obs1.push_back(map.LTM[j].observations[k].pt);
+                            obs1.push_back(cartograph.LTM[j].observations[k].pt);
                         }
-                        if (map.LTM[j].observations[k].cameraId == CameraID::RIGHT)
+                        if (cartograph.LTM[j].observations[k].cameraId == CameraID::RIGHT)
                         {
-                            obs2.push_back(map.LTM[j].observations[k].pt);
+                            obs2.push_back(cartograph.LTM[j].observations[k].pt);
                         }
                     }
                 }
             }
 
             vector<Eigen::Vector2d> repro1, repro2;
-            map.projectPointCloud(Point3D, repro1, repro2, step);
+            cartograph.projectPointCloud(Point3D, repro1, repro2, step);
 
             cv::cvtColor(image1, image1, CV_GRAY2BGR);
             cv::cvtColor(image2, image2, CV_GRAY2BGR);

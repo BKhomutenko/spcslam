@@ -228,9 +228,8 @@ class StereoCartography
 public:
     StereoCartography (Transformation<double> & p1, Transformation<double> & p2,
             ICamera & c1, ICamera & c2)
-            : stereo(p1, p2, c1, c2), extractor(2000, 2, 2, false, true)
+            : stereo(p1, p2, c1, c2)
     {
-        extractor.setType(FeatureType::SURF);
         matcher.initStereoBins(stereo);
         matcher.computeMaps(stereo);
         srand(0);
@@ -241,13 +240,11 @@ public:
 
     Matcher matcher;
 
-    Extractor extractor;
-
     void projectPointCloud(const vector<Vector3d> & src,
             vector<Vector2d> & dst1, vector<Vector2d> & dst2, int poseIdx) const;
 
     //performs optimization of all landmark positions wrt the actual path
-    void improveTheMap(bool firstBA);
+    void improveTheMap(bool firstBA=true);
 
     void improveTheMap_2();
 

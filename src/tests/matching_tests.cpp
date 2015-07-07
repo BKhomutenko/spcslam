@@ -795,11 +795,11 @@ void displayBruteForce_2 ()
 
 int main(int argc, char** argv)
 {
-    //testBruteForce();
+    testBruteForce();
 
-    //testStereoMatch();
+    testStereoMatch();
 
-    //testMatchReprojected();
+    testMatchReprojected();
 
     array<double, 6> paramsL{0.571, 1.180, 378.304, 377.960, 654.923, 474.835};
     array<double, 6> paramsR{0.570, 1.186, 377.262, 376.938, 659.914, 489.024};
@@ -817,7 +817,7 @@ int main(int argc, char** argv)
 
     // testDistancesBF();
 
-    displayBruteForce();
+    // displayBruteForce();
 
     return 0;
 }

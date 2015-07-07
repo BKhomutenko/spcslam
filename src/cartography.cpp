@@ -564,6 +564,9 @@ void Odometry::Ransac()
     }
 }
 
+vector<Eigen::Vector3d> oD_modelLM, oD_inlierLM, oD_outlierLM;
+vector<Eigen::Vector2d> oD_inlierFeat, oD_outlierFeat;
+
 void Odometry::Ransac_2()
 {
     assert(observationVec_2.size() == cloud.size());
@@ -679,11 +682,8 @@ void Odometry::Ransac_2()
             TorigBase = pose;
 
             // debug
-            extern bool odometryDebug;
-            if (odometryDebug)
+            if (true)
             {
-                extern vector<Eigen::Vector2d> oD_inlierFeat, oD_outlierFeat;
-                extern vector<Eigen::Vector3d> oD_modelLM, oD_inlierLM, oD_outlierLM;
                 oD_modelLM.clear();
                 oD_inlierLM.clear();
                 oD_inlierFeat.clear();

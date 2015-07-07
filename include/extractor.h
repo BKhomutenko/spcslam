@@ -86,7 +86,8 @@ public:
 
     void setType(FeatureType featType);
 
-    void operator()(const cv::Mat & img, std::vector<Feature> & featuresVec, int camId);
+    //TODO make general extractor and inherit stereo extractor
+    void operator()(const cv::Mat & img, std::vector<Feature> & featuresVec, int camId=-1);
 
     void extractFeatures(cv::Mat src, vector<cv::KeyPoint> points, cv::Mat & descriptors);
 

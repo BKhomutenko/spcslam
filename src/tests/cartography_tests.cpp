@@ -223,13 +223,13 @@ void testBundleAdjustment()
     vector<Vector2d> proj1, proj2;
     vector<Vector3d> cloud1, cloud2;
     
-    cartograph.LM.resize(maxNum);
+    cartograph.WM.resize(maxNum);
     for (unsigned int i = 0; i < maxNum; i++)
     {
         cloud1.push_back(Vector3d(10*sin(i),
                         10*std::cos(i*1.7),
                         15.2+5*std::sin(i/3.14)));
-        cartograph.LM[i].X = cloud1[i];
+        cartograph.WM[i].X = cloud1[i];
     }
     
     cartograph.trajectory.push_back(Transformation<double>(0, 0, 0, 0, 0, 0));
@@ -245,14 +245,14 @@ void testBundleAdjustment()
         {
             Observation obs1(proj1[i], j, LEFT);
             Observation obs2(proj2[i], j, RIGHT);
-            cartograph.LM[i].observations.push_back(obs1);
-            cartograph.LM[i].observations.push_back(obs2);
+            cartograph.WM[i].observations.push_back(obs1);
+            cartograph.WM[i].observations.push_back(obs2);
         }
     }
     
     for (unsigned int i = 0; i < maxNum; i++)
     {
-        cartograph.LM[i].X += Vector3d::Random();
+        cartograph.WM[i].X += Vector3d::Random();
     }
     
     for (unsigned int j = 1; j < cartograph.trajectory.size(); j++)
@@ -262,7 +262,7 @@ void testBundleAdjustment()
     }
     
     cartograph.improveTheMap();
-    for (auto & lm : cartograph.LM)
+    for (auto & lm : cartograph.WM)
     {
         cloud2.push_back(lm.X);
     }
