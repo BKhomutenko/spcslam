@@ -64,7 +64,8 @@ bool MotionModel::Evaluate(double const* const* args,
         if (jac[0])
         {
             Matrix6d JacDeltaFirst;
-            JacDeltaFirst << -RfirstBase, Phat*BfirstInv, Matrix6d::Zero(), -Bdelta*RfirstBase*BfirstInv;
+            JacDeltaFirst <<   -RfirstBase,       Phat*RfirstBase*BfirstInv,
+                             Matrix6d::Zero(),   -Bdelta*RfirstBase*BfirstInv;
             
             Eigen::Matrix<double, 4, 6, RowMajor> JacMat = JacErrDelta * JacDeltaFirst;
             copy(JacMat.data(), JacMat.data() + 24, jac[0]);
@@ -72,7 +73,8 @@ bool MotionModel::Evaluate(double const* const* args,
         if (jac[1])
         {
             Matrix6d JacDeltaSecond;
-            JacDeltaSecond << -RfirstBase, Matrix6d::Zero(), Matrix6d::Zero(), -Bdelta*RfirstBase*BfirstInv;
+            JacDeltaSecond <<    RfirstBase,          Matrix6d::Zero(), 
+                               Matrix6d::Zero(),  Bdelta*RfirstBase*BfirstInv;
             
             Eigen::Matrix<double, 4, 6, RowMajor> JacMat = JacErrDelta * JacDeltaSecond;
             copy(JacMat.data(), JacMat.data() + 24, jac[1]);
