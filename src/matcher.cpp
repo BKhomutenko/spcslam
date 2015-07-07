@@ -280,22 +280,6 @@ void Matcher::initStereoBins(const StereoSystem & stereo)
 
     const double pi = std::atan(1)*4;
 
-/*
-    // theta: rotation angle for R -> L (R reference frame)
-    double theta = 2*std::acos(qR(3));
-
-    // uR: rotation versor for R -> L (R reference frame)
-    Eigen::Vector3d uR(qR(0)/std::sin(theta/2), qR(1)/std::sin(theta/2), qR(2)/std::sin(theta/2));
-
-    // u: rotation vector for R -> L (R reference frame)
-    Eigen::Vector3d u = uR*theta;
-
-     // 2R1
-
-    // R: rotation matrix R -> L
-    R = stereo.pose1.rotationMatrix()
-    //fromVtoR(u, R);*/
-
     Matrix3d R, RSigma, RPhi, RTot;
 
     // R is rotation matrix L -> R
@@ -460,13 +444,12 @@ void Matcher::bruteForce_2(const vector<Feature> & featuresVec1,
     {
         matches[i].resize(0);
         vector<bool> matched(N2, false);
+        double bestDistOld = 1000;
 
-        int k = 0;
         bool found = true;
-        while (k < bf2matches and found)
+        for (int k = 0; k < bf2matches and found; k++)
         {
             found = false;
-
             int bestMatch = -1;
             double bestDist = bfDistTh2;
 
@@ -477,19 +460,22 @@ void Matcher::bruteForce_2(const vector<Feature> & featuresVec1,
                 if (dist < bestDist and matched[j] == false)
                 {
                     bestDist = dist;
+                    if (bestDist < bestDistOld)
+                    {
+                        bestDistOld = bestDist;
+                    }
                     bestMatch = j;
                     found = true;
                 }
             }
 
-            if (found)
+            if (found and bestDist/bestDistOld < 1.3)
             {
                 matches[i].push_back(bestMatch);
                 matched[bestMatch] = true;
             }
-
-            k++;
         }
+
         for (int j = matches[i].size(); j < bf2matches; j++)
         {
             matches[i].push_back(-1);

@@ -455,6 +455,24 @@ void Odometry::computeTransformation_2()
     Solve(options, &problem, &summary);
 }
 
+bool Odometry::checkSpan(vector<Vector3d> & ransacHP, double angleTh)
+{
+    assert(ransacHP.size() == 3);
+
+    Transformation<double> tC = TorigBase.compose(TbaseCam);
+    vector<Vector3d> HP;
+    tC.inverseTransform(ransacHP, HP);
+    double theta1 = std::acos((HP[0].dot(HP[1]))/(HP[0].norm()*HP[1].norm()));
+    double theta2 = std::acos((HP[0].dot(HP[2]))/(HP[0].norm()*HP[2].norm()));
+    double theta3 = std::acos((HP[1].dot(HP[2]))/(HP[1].norm()*HP[2].norm()));
+
+    bool result = (std::abs(theta1-theta2) >= angleTh and
+                   std::abs(theta1-theta3) >= angleTh and
+                   std::abs(theta2-theta3) >= angleTh);
+    return result;
+}
+
+
 void Odometry::Ransac()
 {
     assert(observationVec.size() == cloud.size());
@@ -470,18 +488,34 @@ void Odometry::Ransac()
     {
         Transformation<double> pose = initialPose;
         int maxIdx = observationVec.size();
-        //choose three points at random
-        int idx1m = rand() % maxIdx;
-        int idx2m, idx3m;
-        do
-        {
-                idx2m = rand() % maxIdx;
-        } while (idx2m == idx1m);
 
+        vector<Vector3d> ransacHP;
+        int idx1m, idx2m, idx3m;
+        int counter = 0;
         do
         {
+            idx1m = rand() % maxIdx;
+
+            do
+            {
+                idx2m = rand() % maxIdx;
+            } while (idx2m == idx1m);
+
+            do
+            {
                 idx3m = rand() % maxIdx;
-        } while (idx3m == idx1m or idx3m == idx2m);
+            } while (idx3m == idx1m or idx3m == idx2m);
+
+            ransacHP = { cloud[idx1m], cloud[idx2m], cloud[idx3m] };
+            counter++;
+            if (counter == 10000)
+            {
+                cout << endl << endl << "ERROR: Ransac could not find a model" << endl << endl;
+                exit(1);
+            }
+
+        //} while (0);
+        } while (checkSpan(ransacHP, 0.2) == false);
 
 
         //solve an optimization problem
@@ -546,17 +580,33 @@ void Odometry::Ransac_2()
         Transformation<double> pose = initialPose;
         int maxIdx = observationVec_2.size();
         //choose three points at random
-        int idx1m = rand() % maxIdx;
-        int idx2m, idx3m;
+        vector<Vector3d> ransacHP;
+        int idx1m, idx2m, idx3m;
+        int counter = 0;
         do
         {
-                idx2m = rand() % maxIdx;
-        } while (idx2m == idx1m);
+            idx1m = rand() % maxIdx;
 
-        do
-        {
+            do
+            {
+                idx2m = rand() % maxIdx;
+            } while (idx2m == idx1m);
+
+            do
+            {
                 idx3m = rand() % maxIdx;
-        } while (idx3m == idx1m or idx3m == idx2m);
+            } while (idx3m == idx1m or idx3m == idx2m);
+
+            ransacHP = { cloud[idx1m], cloud[idx2m], cloud[idx3m] };
+            counter++;
+            if (counter == 10000)
+            {
+                cout << endl << endl << "ERROR: Ransac could not find a model" << endl << endl;
+                exit(1);
+            }
+
+        //} while (0);
+        } while (checkSpan(ransacHP, 0.15) == false);
 
         int idx1p = rand() % observationVec_2[idx1m].size();
         int idx2p = rand() % observationVec_2[idx2m].size();
@@ -582,12 +632,15 @@ void Odometry::Ransac_2()
         options.max_num_iterations = 10;
         Solve(options, &problem, &summary);
 
-        //count inliers
+        // project cloud to cam using estimated new pose
         vector<Vector3d> XcamVec(numPoints);
-        Transformation<double> TorigCam = pose.compose(TbaseCam);
-        TorigCam.inverseTransform(cloud, XcamVec);
         vector<Vector2d> projVec(numPoints);
+        Transformation<double> TorigCam = pose.compose(TbaseCam);
+
+        TorigCam.inverseTransform(cloud, XcamVec);
         camera.projectPointCloud(XcamVec, projVec);
+
+        // initialize empty inlier mask
         vector<vector<bool> > currentInlierMask(numPoints);
         for (int i = 0; i < numPoints; i++)
         {
@@ -595,6 +648,7 @@ void Odometry::Ransac_2()
             currentInlierMask[i] = vec;
         }
 
+        // count inliers
         int countInliers = 0;
         for (unsigned int i = 0; i < numPoints; i++)
         {
@@ -609,12 +663,13 @@ void Odometry::Ransac_2()
                     best = j;
                 }
             }
-            if (errNorm < 1)
+            if (errNorm < 2)
             {
                 currentInlierMask[i][best] = true;
                 countInliers++;
             }
         }
+
         //keep the best hypothesis
         if (countInliers > bestInliers)
         {
@@ -622,6 +677,55 @@ void Odometry::Ransac_2()
             inlierMask_2 = currentInlierMask;
             bestInliers = countInliers;
             TorigBase = pose;
+
+            // debug
+            extern bool odometryDebug;
+            if (odometryDebug)
+            {
+                extern vector<Eigen::Vector2d> oD_inlierFeat, oD_outlierFeat;
+                extern vector<Eigen::Vector3d> oD_modelLM, oD_inlierLM, oD_outlierLM;
+                oD_modelLM.clear();
+                oD_inlierLM.clear();
+                oD_inlierFeat.clear();
+                oD_outlierLM.clear();
+                oD_outlierFeat.clear();
+                for (int i = 0; i < observationVec_2.size(); i++)
+                {
+                    bool inlier = false;
+                    for(int j = 0; j < observationVec_2[i].size(); j++)
+                    {
+                        if (inlierMask_2[i][j])
+                        {
+                            inlier = true;
+                            bool model = false;
+                            for (int k = 0; k < 3; k++)
+                            {
+                                if (index1[k] == i and index2[k] == j)
+                                {
+                                    model = true;
+                                }
+                            }
+                            if (model)
+                            {
+                                oD_modelLM.push_back(cloud[i]);
+                            }
+                            else
+                            {
+                                oD_inlierLM.push_back(cloud[i]);
+                                oD_inlierFeat.push_back(observationVec_2[i][j]);
+                            }
+                        }
+                        else
+                        {
+                            oD_outlierFeat.push_back(observationVec_2[i][j]);
+                        }
+                    }
+                    if (inlier == false)
+                    {
+                        oD_outlierLM.push_back(cloud[i]);
+                    }
+                }
+            }
         }
     }
 }
@@ -856,7 +960,7 @@ Transformation<double> StereoCartography::estimateOdometry_3(const vector<Featur
         Eigen::Vector3d Xb, Xc;
         trajectory.back().inverseTransform(WM[k].X, Xb);
         stereo.TbaseCam1.inverseTransform(Xb, Xc);
-        if (Xc(2) > 0.5 and WM[k].observations.back().poseIdx == trajectory.size()-1)
+        if (Xc(2) > 0 and WM[k].observations.back().poseIdx == trajectory.size()-1)
         {
             lmFeatureVec.push_back(Feature(Vector2d(0, 0), WM[k].d));
             numActive++;
@@ -874,7 +978,7 @@ Transformation<double> StereoCartography::estimateOdometry_3(const vector<Featur
             Eigen::Vector3d Xb, Xc;
             trajectory.back().inverseTransform(STM[k].X, Xb);
             stereo.TbaseCam1.inverseTransform(Xb, Xc);
-            if (Xc(2) > 0.5 and STM[k].observations.back().poseIdx == trajectory.size()-1)
+            if (Xc(2) > 0 and STM[k].observations.back().poseIdx == trajectory.size()-1)
             {
                 lmFeatureVec.push_back(Feature(Vector2d(0, 0), STM[k].d));
                 numActive++;

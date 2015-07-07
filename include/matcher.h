@@ -16,10 +16,10 @@ class Matcher
 {
 public:
 
-    double bfDistTh = 0.20;
-    double bfDistTh2 = 0.20;
-    double stereoDistTh = 0.20;
-    double reproDistTh = 0.20;
+    double bfDistTh = 0.30;
+    double bfDistTh2 = 0.30;
+    double stereoDistTh = 0.30;
+    double reproDistTh = 0.5;
 
     const int bf2matches = 3;
 
