@@ -55,11 +55,16 @@ private:
     const int descWidth = 4;
 
     vector<Eigen::MatrixXi> binMaps;
-    const int nDivisions = 5;
-    const double ellipseAsq = 2.8 * 320 * 320;
-    const double ellipseBsq = 1.5 * 320 * 320;
-    const vector<double> ellipseU0 = { 608, 688 };
-    const double ellipseV0 = 450;
+    const int nDivVertical = 4;
+    const int nDivHorizontal = 6;
+
+    const vector<vector<double> > circle1 = { { 680, 462, 632 },
+                                              { 1253, 328, 1092 } }; // circle definition: { u0, v0, r }
+    const vector<vector<double> > circle2 = { { 292, 382, 850 },
+                                              { 324, 502, 918 } };
+    const vector<vector<double> > uBounds = { { 48, 1142 },
+                                              { 161, 1242 } };
+    const vector<double> vBounds = { 100, 616 };
 
     const int nFeatures = 300;
     vector<vector<int>> featureDistributions;
@@ -71,12 +76,12 @@ public:
     Extractor(double hessianThreshold, int nOctaves, int nOctaveLayers, bool extended, bool upright)
     : det(hessianThreshold, nOctaves, nOctaveLayers, extended, upright)
     {
-        computeBinMaps();
+        computeMaps();
     }
 
     Extractor()
     {
-        computeBinMaps();
+        computeMaps();
     }
 
     void setType(FeatureType featType);
@@ -99,7 +104,9 @@ public:
 
     void cvtNormimagesmage(cv::Mat & image);
 
-    void computeBinMaps();
+    //void computeBinMaps();
+
+    void computeMaps();
 
 };
 

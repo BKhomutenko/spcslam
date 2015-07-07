@@ -8,6 +8,15 @@
 
 using namespace std;
 
+bool extractorDebug = false;
+bool odometryDebug = false;
+bool saveDebugImages = false;
+bool displayResults = false;
+string debugId = "3";
+
+vector<Eigen::Vector3d> oD_modelLM, oD_inlierLM, oD_outlierLM;
+vector<Eigen::Vector2d> oD_inlierFeat, oD_outlierFeat;
+
 void projectLandmarks(StereoCartography & map, vector<Feature> & featuresLM1,
                       vector<Feature> & featuresLM2, vector<int> & indexList, int & nSTMprojected)
 {
@@ -139,7 +148,7 @@ void firstMemoryUpdate(StereoCartography & map, int allowedGapSize, int nObsMin)
     for (int j = 0; j < nWM; j++)
     {
         int lastOb = map.WM[j].observations.back().poseIdx;
-        if (lastOb >= step - allowedGapSize)
+        if (lastOb >= step - allowedGapSize - 5)
         {
             tempWM.push_back(map.WM[j]);
         }
@@ -263,18 +272,72 @@ void saveData(StereoCartography & map,  int progressiveNum)
     }
 }
 
+void displayOdometryDebug(StereoCartography & map, int step, int firstImage, cv::Mat & image1_new, cv::Mat & image1_ex)
+{
+    double resizeRatio = 1;
+    cv::Scalar orange(  0, 150, 250);
+    cv::Scalar yellow(  0, 255, 255);
+    cv::Scalar red   (  0,   0, 255);
+    cv::Scalar green (  0, 255,   0);
+    cv::Scalar blue  (255,   0,   0);
+    cv::Scalar purple(255,   0, 255);
+
+    vector<Eigen::Vector2d> oD_modelLMpt, oD_inlierLMpt, oD_outlierLMpt, aux,
+                            oD_modelLMpt_ex, oD_inlierLMpt_ex, oD_outlierLMpt_ex;
+    map.projectPointCloud(oD_modelLM, oD_modelLMpt, aux, step);
+    map.projectPointCloud(oD_modelLM, oD_modelLMpt_ex, aux, step - 1);
+    map.projectPointCloud(oD_inlierLM, oD_inlierLMpt, aux, step);
+    map.projectPointCloud(oD_inlierLM, oD_inlierLMpt_ex, aux, step - 1);
+    map.projectPointCloud(oD_outlierLM, oD_outlierLMpt, aux, step);
+    map.projectPointCloud(oD_outlierLM, oD_outlierLMpt_ex, aux, step - 1);
+
+    cv::resize(image1_new, image1_new, cv::Size(0,0), resizeRatio, resizeRatio);
+    cv::resize(image1_ex, image1_ex, cv::Size(0,0), resizeRatio, resizeRatio);
+
+    cv::cvtColor(image1_new, image1_new, CV_GRAY2BGR);
+    cv::cvtColor(image1_ex, image1_ex, CV_GRAY2BGR);
+
+    drawCircles(oD_inlierFeat, image1_new, blue, resizeRatio, 5, 1);
+    drawCircles(oD_outlierFeat, image1_new, purple, resizeRatio, 5, 1);
+
+    drawCrosses(oD_inlierLMpt, image1_new, green, resizeRatio, 10, 1);
+    drawCrosses(oD_outlierLMpt, image1_new, red, resizeRatio, 10, 1);
+    drawCrosses(oD_modelLMpt, image1_new, orange, resizeRatio, 10, 1);
+
+    drawCrosses(oD_inlierLMpt_ex, image1_ex, green, resizeRatio, 10, 1);
+    drawCrosses(oD_outlierLMpt_ex, image1_ex, red, resizeRatio, 10, 1);
+    drawCrosses(oD_modelLMpt_ex, image1_ex, orange, resizeRatio, 10, 1);
+
+    int cSize = oD_modelLM.size() + oD_inlierLM.size() + oD_outlierLM.size();
+    double iP = double((oD_modelLM.size() + oD_inlierLM.size())/(double)cSize)*100.0;
+    cout << endl << endl << "# Odometry debug #  Cloud size = " << cSize << "  inliers = " << iP << "%";
+
+    if (saveDebugImages)
+    {
+        string imageFile_new = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_" + debugId + "/debug_" + to_string(firstImage + step) + "_2.png";
+        string imageFile_ex = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_" + debugId + "/debug_" + to_string(firstImage + step) + "_1.png";
+        imwrite(imageFile_new, image1_new);
+        imwrite(imageFile_ex, image1_ex);
+    }
+    else
+    {
+        imshow("Odometry debug", image1_new);
+        imshow("Odometry debug ex", image1_ex);
+        cv::waitKey();
+    }
+}
+
+
+
 int main()
 {
-    int Nsteps = 150;
-    int firstImage = 50;
+    int Nsteps = 200;
+    int firstImage = 400;
     int firstStepBA = 2;
-    int odometryType = 3;
+    int odometryType = 2;
     int allowedGapSize = 2;
     int nObsMin = 6;
-    int progressiveNum = 26;
-
-    bool displayProgress = true;
-    bool displayResults = false;
+    int progressiveNum = 40;
 
     cout.precision(4);
 
@@ -312,9 +375,11 @@ int main()
         time4 = clock();
         dt1 = double(time4 - time1) / CLOCKS_PER_SEC;
 
-        // extract features
         vector<Feature> featuresVec1, featuresVec2,
-                        featuresVecC1, featuresVecC2, featuresLM1, featuresLM2;
+                        featuresVecC1, featuresVecC2,
+                        featuresLM1, featuresLM2;
+
+        // extract features
         map.extractor(image1, featuresVec1, 1);
         map.extractor(image2, featuresVec2, 2);
 
@@ -327,8 +392,12 @@ int main()
         if (step == 0)
         {
             map.trajectory.push_back(Transformation<double>());
-            featuresVecC1.swap(featuresVec1);
-            featuresVecC2.swap(featuresVec2);
+            //featuresVecC1.swap(featuresVec1);
+            //featuresVecC2.swap(featuresVec2);
+            featuresVecC1.resize(N1);
+            featuresVecC2.resize(N2);
+            copy(featuresVec1.begin(), featuresVec1.end(), featuresVecC1.begin());
+            copy(featuresVec2.begin(), featuresVec2.end(), featuresVecC2.begin());
         }
         else
         {
@@ -354,6 +423,14 @@ int main()
             }
             map.trajectory.push_back(newPose);
 
+            if (odometryDebug)
+            {
+                string imageFile1_ex = datasetPath + prefix1 + to_string(firstImage + step - 1) + extension;
+                cv::Mat image1_ex = cv::imread(imageFile1_ex, 0);
+                cv::Mat image1_new = cv::imread(imageFile1, 0);
+                displayOdometryDebug(map, step, firstImage, image1_new, image1_ex);
+            }
+
             // create reprojections of landmarks
             vector<Feature> featuresLM1, featuresLM2;
             vector<int> indexList;
@@ -362,8 +439,8 @@ int main()
 
             // match reprojections with extracted features
             vector<int> matchesR1, matchesR2;
-            map.matcher.matchReprojected(featuresLM1, featuresVec1, matchesR1, 5);
-            map.matcher.matchReprojected(featuresLM2, featuresVec2, matchesR2, 5);
+            map.matcher.matchReprojected(featuresLM1, featuresVec1, matchesR1, 2.5);
+            map.matcher.matchReprojected(featuresLM2, featuresVec2, matchesR2, 2.5);
 
             // update observations
             updateObservations(map, featuresVec1, featuresVec2, matchesR1,
@@ -407,18 +484,26 @@ int main()
         dt5 = double(time3 - time1) / CLOCKS_PER_SEC;
         cout << "   Total time: " << dt5 << flush;
 
-        if (displayProgress)
+        if (extractorDebug)
         {
-            double resizeRatio = 0.5;
+            double resizeRatio = 1;
             cv::resize(image1, image1, cv::Size(0,0), resizeRatio, resizeRatio);
             cv::cvtColor(image1, image1, CV_GRAY2BGR);
             for (int j = 0; j < featuresVec1.size(); j++)
             {
                 cv::circle(image1, cv::Point(featuresVec1[j].pt(0),
-                    featuresVec1[j].pt(1))*resizeRatio, 6, cv::Scalar(255, 0, 0), 2);
+                    featuresVec1[j].pt(1))*resizeRatio, 6, cv::Scalar(255, 0, 0), 1);
             }
-            imshow("image1", image1);
-            cv::waitKey(200);
+            if (saveDebugImages)
+            {
+                string imageFile = "/media/valerio/Dati/Progetti/Tesi_Emaro/debug/debug_" + debugId + "/debug_" + to_string(firstImage + step) + "_0.png";
+                cv::imwrite(imageFile, image1);
+            }
+            else
+            {
+                imshow("image1", image1);
+                cv::waitKey(100);
+            }
         }
     }
 

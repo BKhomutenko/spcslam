@@ -50,11 +50,21 @@ void Extractor::operator()(const cv::Mat & img, std::vector<Feature> & featuresV
     for (int i = 0; i < N; i++)
     {
         const cv::KeyPoint & cvkp = cvKpVec[i];
-        float * ptr = (float *)descriptors.row(i).data;
-        Feature kp(cvkp.pt.x, cvkp.pt.y, ptr, cvkp.size, cvkp.angle);
-        featuresVec.push_back(kp);
+        int maxU = binMaps[camId-1].rows() - 1;
+        int u = round(cvkp.pt.x);
+        u = min(u, maxU);
+        u = max(u, 0);
+        int maxV = binMaps[camId-1].cols() - 1;
+        int v = round(cvkp.pt.y);
+        v = min(v, maxV);
+        v = max(v, 0);
+        if (binMaps[camId-1](u, v) != 0)
+        {
+            float * ptr = (float *)descriptors.row(i).data;
+            Feature kp(cvkp.pt.x, cvkp.pt.y, ptr, cvkp.size, cvkp.angle);
+            featuresVec.push_back(kp);
+        }
     }
-
 }
 
 void Extractor::setType(FeatureType featType)
@@ -188,7 +198,7 @@ void Extractor::findFeatures(cv::Mat src, std::vector<cv::KeyPoint> & points, in
         computeResponse(src, resp, scale);
 
         vector<cv::Point2f> maxPoints;
-        findMax(resp, maxPoints, 0.3, camId);
+        findMax(resp, maxPoints, 0.9, camId);
 
 
         for (int i = 0; i < maxPoints.size(); i++)
@@ -210,7 +220,7 @@ void Extractor::findMax(cv::Mat src, vector<cv::Point2f> & maxPoints, float thre
     vector<vector<vector<double> > > dataVec;
     vector<vector<cv::Point2f> > pointsVec;
 
-    for (int i = 0; i < nDivisions*2; i++)
+    for (int i = 0; i < nDivVertical * nDivHorizontal; i++)
     {
         vector<cv::Point2f> vecP;
         pointsVec.push_back(vecP);
@@ -223,44 +233,41 @@ void Extractor::findMax(cv::Mat src, vector<cv::Point2f> & maxPoints, float thre
         for (int u = 0; u < 1296; u++)
         {
             int bin = binMaps.at(camId-1)(u, v);
-            if (bin == 0)
-                continue;
             float srcVal = srcPtr[v*cols + u];
-            if (srcVal < threshold)
-                continue;
-            bool isMax = true;
-            for (int i = 0; i < 8; i++)
+            if (bin != 0 and srcVal >= threshold)
             {
-                if(srcVal <= srcPtr[(v + neiv[i])*cols + u + neiu[i]])
+                bool isMax = true;
+                for (int i = 0; i < 8 and isMax; i++)
                 {
-                    isMax = false;
-                    break;
+                    if(srcVal <= srcPtr[(v + neiv[i])*cols + u + neiu[i]])
+                    {
+                        isMax = false;
+                    }
                 }
-            }
-            if (isMax)
-            {
-                cv::Point2f maxPt(u, v);
-                pointsVec[bin-1].push_back(maxPt);
-                vector<double> pointData = { (double)pointsVec[bin-1].size()-1, (double)srcVal };
-                dataVec[bin-1].push_back(pointData);
+                if (isMax)
+                {
+                    cv::Point2f maxPt(u, v);
+                    pointsVec[bin-1].push_back(maxPt);
+                    vector<double> pointData = { (double)pointsVec[bin-1].size()-1, (double)srcVal };
+                    dataVec[bin-1].push_back(pointData);
+                }
             }
         }
     }
 
-    for (int i = 0; i < nDivisions*2; i++)
+    for (int i = 0; i < nDivVertical * nDivHorizontal; i++)
     {
         sort(dataVec[i].begin(), dataVec[i].end(),
             [](const vector<double>& a, const vector<double>& b)
             { return a[1] > b[1]; });
     }
 
-    for (int i = 0; i < nDivisions*2; i++)
+    for (int i = 0; i < nDivVertical * nDivHorizontal; i++)
     {
-        int j = 0;
-        while (j < min((double)featureDistributions[camId-1][i], (double)dataVec[i].size()))
+        int jMax = min((double)featureDistributions[camId-1][i], (double)dataVec[i].size());
+        for (int j = 0; j < jMax; j++)
         {
             maxPoints.push_back(pointsVec[i][dataVec[i][j][0]]);
-            j++;
         }
     }
 }
@@ -334,7 +341,116 @@ void Extractor::extractFeatures(cv::Mat src, vector<cv::KeyPoint> points, cv::Ma
     }
 }
 
-void Extractor::computeBinMaps()
+void Extractor::computeMaps()
+{
+    int width = 1296;
+    int height = 966;
+
+    for (int map = 0; map <= 1; map++)
+    {
+        Eigen::MatrixXi m;
+        m.resize(width, height);
+        binMaps.push_back(m);
+
+        vector<double> uRanges(nDivHorizontal + 1);
+        vector<double> vRanges(nDivVertical + 1);
+        vector<int> subArea(nDivHorizontal * nDivVertical, 0);
+        int maskArea = 0;
+        double binWidth = (uBounds[map][1] - uBounds[map][0]) / (double)nDivHorizontal;
+        double binHeight = (vBounds[1] - vBounds[0]) / (double) nDivVertical;
+
+        for (int i = 0; i < nDivVertical + 1; i++)
+        {
+            vRanges[i] = vBounds[0] + binHeight * i;
+            //cout << "vRange: " << vRanges[i] << endl;
+        }
+        for (int i = 0; i < nDivHorizontal + 1; i++)
+        {
+            uRanges[i] = uBounds[map][0] + binWidth * i;
+            //cout << "uRange: " << uRanges[i] << endl;
+        }
+
+        for (int u = 0; u < width; u++)
+        {
+            for (int v = 0; v < height; v++)
+            {
+                int indexU = 0;
+                int indexV = 0;
+
+
+                if ( (u-circle1[map][0]) * (u-circle1[map][0]) +
+                     (v-circle1[map][1]) * (v-circle1[map][1])
+                     <= circle1[map][2] * circle1[map][2] and
+                     (u-circle2[map][0]) * (u-circle2[map][0]) +
+                     (v-circle2[map][1]) * (v-circle2[map][1])
+                     <= circle2[map][2] * circle2[map][2] and
+                     v >= vBounds[0] and v <= vBounds[1] )
+                {
+                    for (int i = 0; i < nDivVertical; i++)
+                    {
+                        if (v > vRanges[i] and v <= vRanges[i+1])
+                        {
+                            indexV = i;
+                            break;
+                        }
+                    }
+                    for (int i = 0; i < nDivHorizontal; i++)
+                    {
+                        if (u > uRanges[i] and u <= uRanges[i+1])
+                        {
+                            indexU = i + 1;
+                            break;
+                        }
+                    }
+
+                    int bin = indexV * nDivHorizontal + indexU;
+                    binMaps[map](u, v) = bin;
+                    subArea.at(bin-1) ++;
+                    maskArea ++;
+                }
+            }
+        }
+
+        //cout << "ellipse area: " << ellipseArea << endl;
+        vector<int> fDist;
+        for (int i = 0; i < nDivVertical * nDivHorizontal; i++)
+        {
+            double ratio = (double)subArea[i] / (double)maskArea * nFeatures;
+            if (i % 2 == 0)
+            {
+                fDist.push_back(floor(ratio));
+            }
+            else
+            {
+                fDist.push_back(ceil(ratio));
+            }
+            //cout << "bin " << i+1 << " area: " << subArea[i] << endl;
+            //cout << "bin " << i+1 << " features: " << fDist[i] << endl;
+        }
+
+        featureDistributions.push_back(fDist);
+
+        if (map == 0)
+        {
+            cv::Mat image = cv::Mat::zeros(height/2, width/2, CV_16UC1);
+            for (int u = 0; u < width/2; u++)
+            {
+                for (int v = 0; v < height/2; v++)
+                {
+                    double value = (double)binMaps[map](u*2, v*2) * 65535 / (nDivVertical * nDivHorizontal);
+                    image.at<short>(v,u) = (int)value;
+                }
+            }
+            //cv::imshow("map", image);
+            //cout << "Map computed" << endl;
+            //cv::waitKey(100);
+        }
+    }
+}
+
+
+
+/*void Extractor::computeBinMaps()
 {
     int width = 1296;
     int height = 966;
@@ -409,7 +525,7 @@ void Extractor::computeBinMaps()
         }
         cv::imshow("map", image);
         cv::waitKey();
-        cout << "Map computed" << endl;*/
+        cout << "Map computed" << endl;
 
     }
-}
+}*/

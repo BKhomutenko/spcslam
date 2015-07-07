@@ -18,4 +18,10 @@ void drawPoints(const vector<Feature> & fVec1,
                 const vector<Feature> & fVec2,
                 cv::Mat & out, cv::Scalar color1, cv::Scalar color2);
 
+void drawCircles(const vector<Eigen::Vector2d> & ptVec, cv::Mat & out,
+                 cv::Scalar color, double resizeRatio, double radius, double thickness);
+
+void drawCrosses(const vector<Eigen::Vector2d> & ptVec, cv::Mat & out,
+                 cv::Scalar color, double resizeRatio, double size, double thickness);
+
 #endif

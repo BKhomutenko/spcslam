@@ -43,3 +43,38 @@ void drawPoints(const vector<Feature> & fVec1,
         cv::circle(out, cv::Point(fVec2[i].pt(0), fVec2[i].pt(1)), 10, color2);
     }
 }
+
+void drawCrosses(const vector<Eigen::Vector2d> & ptVec, cv::Mat & out,
+                 cv::Scalar color, double resizeRatio, double size, double thickness)
+{
+    double l = (double)size / 2.0;
+    for (int i = 0; i < ptVec.size(); i++)
+    {
+        cv::line(out, cv::Point(ceil((ptVec[i](0) - l)*resizeRatio),
+                                ceil((ptVec[i](1) - l)*resizeRatio)),
+                      cv::Point(ceil((ptVec[i](0) + l)*resizeRatio),
+                                ceil((ptVec[i](1) + l)*resizeRatio)), color, thickness);
+        cv::line(out, cv::Point(ceil((ptVec[i](0) + l)*resizeRatio),
+                                ceil((ptVec[i](1) - l)*resizeRatio)),
+                      cv::Point(ceil((ptVec[i](0) - l)*resizeRatio),
+                                ceil((ptVec[i](1) + l)*resizeRatio)), color, thickness);
+        /*cv::line(out, cv::Point(ceil((ptVec[i](0) - l)*resizeRatio)-1,
+                                ceil((ptVec[i](1) - l)*resizeRatio)),
+                      cv::Point(ceil((ptVec[i](0) + l)*resizeRatio)-1,
+                                ceil((ptVec[i](1) + l)*resizeRatio)), color, thickness);
+        cv::line(out, cv::Point(ceil((ptVec[i](0) + l)*resizeRatio)+1,
+                                ceil((ptVec[i](1) - l)*resizeRatio)),
+                      cv::Point(ceil((ptVec[i](0) - l)*resizeRatio)+1,
+                                ceil((ptVec[i](1) + l)*resizeRatio)), color, thickness);*/
+    }
+}
+
+void drawCircles(const vector<Eigen::Vector2d> & ptVec, cv::Mat & out,
+                 cv::Scalar color, double resizeRatio, double radius, double thickness)
+{
+    for (int i = 0; i < ptVec.size(); i++)
+    {
+        cv::circle(out, cv::Point(ptVec[i](0), ptVec[i](1))*resizeRatio, radius, color, thickness);
+        //cv::circle(out, cv::Point(ptVec[i](0), ptVec[i](1))*resizeRatio, radius+1, color, thickness);
+    }
+}
