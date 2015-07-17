@@ -80,8 +80,8 @@ void projectLandmarks(StereoCartography & cartograph, vector<Feature> & features
     }
 }
 
-void updateObservations(StereoCartography & cartograph, vector<Feature> & featuresVec1,
-                        vector<Feature> & featuresVec2, vector<int> & matchesR1,
+void updateObservations(StereoCartography & cartograph, vector<Feature> & featureVec1,
+                        vector<Feature> & featureVec2, vector<int> & matchesR1,
                         vector<int> & matchesR2, vector<int> & indexList, int & nSTMprojected)
 {
     int step = cartograph.trajectory.size() - 1;
@@ -90,13 +90,13 @@ void updateObservations(StereoCartography & cartograph, vector<Feature> & featur
     {
         if (matchesR1[j] != -1)
         {
-            Observation o1(featuresVec1[matchesR1[j]].pt, step, CameraID::LEFT);
+            Observation o1(featureVec1[matchesR1[j]].pt, step, CameraID::LEFT);
             cartograph.STM[indexList[j]].observations.push_back(o1);
-            cartograph.STM[indexList[j]].d = featuresVec1[matchesR1[j]].desc;
+            cartograph.STM[indexList[j]].d = featureVec1[matchesR1[j]].desc;
         }
         if (matchesR2[j] != -1)
         {
-            Observation o2(featuresVec2[matchesR2[j]].pt, step, CameraID::RIGHT);
+            Observation o2(featureVec2[matchesR2[j]].pt, step, CameraID::RIGHT);
             cartograph.STM[indexList[j]].observations.push_back(o2);
         }
     }
@@ -106,13 +106,13 @@ void updateObservations(StereoCartography & cartograph, vector<Feature> & featur
     {
         if (matchesR1[j] != -1)
         {
-            Observation o1(featuresVec1[matchesR1[j]].pt, step, CameraID::LEFT);
+            Observation o1(featureVec1[matchesR1[j]].pt, step, CameraID::LEFT);
             cartograph.WM[indexList[j]].observations.push_back(o1);
-            cartograph.WM[indexList[j]].d = featuresVec1[matchesR1[j]].desc;
+            cartograph.WM[indexList[j]].d = featureVec1[matchesR1[j]].desc;
         }
         if (matchesR2[j] != -1)
         {
-            Observation o2(featuresVec2[matchesR2[j]].pt, step, CameraID::RIGHT);
+            Observation o2(featureVec2[matchesR2[j]].pt, step, CameraID::RIGHT);
             cartograph.WM[indexList[j]].observations.push_back(o2);
         }
     }
@@ -161,12 +161,12 @@ void firstMemoryUpdate(StereoCartography & cartograph, int allowedGapSize, int n
     cartograph.WM.insert(cartograph.WM.end(), toWM.begin(), toWM.end());
 }
 
-void findCandidates(StereoCartography & cartograph, vector<Feature> & featuresVec1,
-                    vector<Feature> & featuresVec2, vector<int> & matchesR1, vector<int> & matchesR2,
-                    vector<Feature> & featuresVecC1, vector<Feature> & featuresVecC2)
+void findCandidates(StereoCartography & cartograph, vector<Feature> & featureVec1,
+                    vector<Feature> & featureVec2, vector<int> & matchesR1, vector<int> & matchesR2,
+                    vector<Feature> & featureVecC1, vector<Feature> & featureVecC2)
 {
-    int N1 = featuresVec1.size();
-    int N2 = featuresVec2.size();
+    int N1 = featureVec1.size();
+    int N2 = featureVec2.size();
     vector<bool> candidates1(N1, true), candidates2(N2, true);
 
     for (int j = 0; j < matchesR1.size(); j++)
@@ -185,41 +185,41 @@ void findCandidates(StereoCartography & cartograph, vector<Feature> & featuresVe
     {
         if (candidates1[j] == true)
         {
-            featuresVecC1.push_back(featuresVec1[j]);
+            featureVecC1.push_back(featureVec1[j]);
         }
     }
     for (int j = 0; j < N2; j++)
     {
         if (candidates2[j] == true)
         {
-            featuresVecC2.push_back(featuresVec2[j]);
+            featureVecC2.push_back(featureVec2[j]);
         }
     }
 }
 
-void secondMemoryUpdate(vector<Feature> & featuresVecC1, vector<Feature> & featuresVecC2,
+void secondMemoryUpdate(vector<Feature> & featureVecC1, vector<Feature> & featureVecC2,
                         StereoCartography & cartograph)
 {
     int step = cartograph.trajectory.size() - 1;
     vector<int> matches;
-    cartograph.matcher.stereoMatch_2(featuresVecC1, featuresVecC2, matches);
+    cartograph.matcher.stereoMatch_2(featureVecC1, featureVecC2, matches);
 
     // create vectors of 2D points and descriptors from matched features
-    vector<Eigen::Vector2d> pointsVec1, pointsVec2;
-    vector<Matrix<float,64,1> > descriptorsVec;
-    for (int j = 0; j < featuresVecC1.size(); j++)
+    vector<Eigen::Vector2d> pointVec1, pointVec2;
+    vector<Descriptor > descriptorVec;
+    for (int j = 0; j < featureVecC1.size(); j++)
     {
         if (matches[j] != -1)
         {
-            pointsVec1.push_back(featuresVecC1[j].pt);
-            pointsVec2.push_back(featuresVecC2[matches[j]].pt);
-            descriptorsVec.push_back(featuresVecC1[j].desc);
+            pointVec1.push_back(featureVecC1[j].pt);
+            pointVec2.push_back(featureVecC2[matches[j]].pt);
+            descriptorVec.push_back(featureVecC1[j].desc);
         }
     }
 
     // reconstruct point cloud (stereo frame)
     vector<Eigen::Vector3d> pointCloud;
-    cartograph.stereo.reconstructPointCloud(pointsVec1, pointsVec2, pointCloud);
+    cartograph.stereo.reconstructPointCloud(pointVec1, pointVec2, pointCloud);
 
     // transform to world frame
     cartograph.trajectory[step].transform(pointCloud, pointCloud);
@@ -227,8 +227,8 @@ void secondMemoryUpdate(vector<Feature> & featuresVecC1, vector<Feature> & featu
     // create landmarks and update STM (2)
     for (int j = 0; j < pointCloud.size(); j++)
     {
-        Observation o1(pointsVec1[j], step, CameraID::LEFT);
-        Observation o2(pointsVec2[j], step, CameraID::RIGHT);
+        Observation o1(pointVec1[j], step, CameraID::LEFT);
+        Observation o2(pointVec2[j], step, CameraID::RIGHT);
         vector<Observation> oVec;
         oVec.push_back(o1);
         oVec.push_back(o2);
@@ -236,7 +236,7 @@ void secondMemoryUpdate(vector<Feature> & featuresVecC1, vector<Feature> & featu
         LandMark L;
         L.X = pointCloud[j];
         L.observations = oVec;
-        L.d = descriptorsVec[j];
+        L.d = descriptorVec[j];
 
         cartograph.STM.push_back(L);
     }
@@ -356,8 +356,7 @@ int main()
     Transformation<double> t1(0, 0, 0, 0, 0, 0);
     Transformation<double> t2(0.788019, 0.00459233, -0.0203431, -0.00243736, 0.0859855, 0.000375454);
 
-    Extractor extractor(2000, 2, 2, false, true);
-    extractor.setType(FeatureType::SURF);
+    FeatureExtractor extr(200);
     
     StereoCartography cartograph(t1, t2, cam1, cam2);
 
@@ -381,29 +380,29 @@ int main()
         time4 = clock();
         dt1 = double(time4 - time1) / CLOCKS_PER_SEC;
 
-        vector<Feature> featuresVec1, featuresVec2,
-                        featuresVecC1, featuresVecC2,
+        vector<Feature> featureVec1, featureVec2,
+                        featureVecC1, featureVecC2,
                         featuresLM1, featuresLM2;
 
         // extract features
-        extractor(image1, featuresVec1, 1);
-        extractor(image2, featuresVec2, 2);
+        extr.compute(image1, featureVec1);
+        extr.compute(image2, featureVec2);
 
         time4 = clock();
         dt2 = double(time4 - time1) / CLOCKS_PER_SEC;
 
-        int N1 = featuresVec1.size();
-        int N2 = featuresVec2.size();
+        int N1 = featureVec1.size();
+        int N2 = featureVec2.size();
 
         if (step == 0)
         {
             cartograph.trajectory.push_back(Transformation<double>());
-            //featuresVecC1.swap(featuresVec1);
-            //featuresVecC2.swap(featuresVec2);
-            featuresVecC1.resize(N1);
-            featuresVecC2.resize(N2);
-            copy(featuresVec1.begin(), featuresVec1.end(), featuresVecC1.begin());
-            copy(featuresVec2.begin(), featuresVec2.end(), featuresVecC2.begin());
+            //featureVecC1.swap(featureVec1);
+            //featureVecC2.swap(featureVec2);
+            featureVecC1.resize(N1);
+            featureVecC2.resize(N2);
+            copy(featureVec1.begin(), featureVec1.end(), featureVecC1.begin());
+            copy(featureVec2.begin(), featureVec2.end(), featureVecC2.begin());
         }
         else
         {
@@ -413,17 +412,17 @@ int main()
             {
                 case 1:
                 {
-                    Transformation<double> tn = cartograph.estimateOdometry(featuresVec1);
+                    Transformation<double> tn = cartograph.estimateOdometry(featureVec1);
                     newPose.setParam(tn.trans(), tn.rot());
                 }
                 case 2:
                 {
-                    Transformation<double> tn = cartograph.estimateOdometry_2(featuresVec1);
+                    Transformation<double> tn = cartograph.estimateOdometry_2(featureVec1);
                     newPose.setParam(tn.trans(), tn.rot());
                 }
                 case 3:
                 {
-                    Transformation<double> tn = cartograph.estimateOdometry_3(featuresVec1);
+                    Transformation<double> tn = cartograph.estimateOdometry_3(featureVec1);
                     newPose.setParam(tn.trans(), tn.rot());
                 }
             }
@@ -445,31 +444,31 @@ int main()
 
             // match reprojections with extracted features
             vector<int> matchesR1, matchesR2;
-            cartograph.matcher.matchReprojected(featuresLM1, featuresVec1, matchesR1, 2.5);
-            cartograph.matcher.matchReprojected(featuresLM2, featuresVec2, matchesR2, 2.5);
+            cartograph.matcher.matchReprojected(featuresLM1, featureVec1, matchesR1, 2.5);
+            cartograph.matcher.matchReprojected(featuresLM2, featureVec2, matchesR2, 2.5);
 
             // update observations
-            updateObservations(cartograph, featuresVec1, featuresVec2, matchesR1,
+            updateObservations(cartograph, featureVec1, featureVec2, matchesR1,
                                matchesR2, indexList, nSTMprojected);
 
             // manage landmarks that are already in memory
             firstMemoryUpdate(cartograph, allowedGapSize, nObsMin);
 
             // create vectors of candidates for new landmarks
-            findCandidates(cartograph, featuresVec1, featuresVec2, matchesR1, matchesR2,
-                           featuresVecC1, featuresVecC2);
+            findCandidates(cartograph, featureVec1, featureVec2, matchesR1, matchesR2,
+                           featureVecC1, featureVecC2);
         }
 
         // create new landmarks and add them to STM
-        secondMemoryUpdate(featuresVecC1, featuresVecC2, cartograph);
+        secondMemoryUpdate(featureVecC1, featureVecC2, cartograph);
 
         time2 = clock();
         dt3 = double(time2 - time4) / CLOCKS_PER_SEC;
         cout << "\n\nstep: " << step << "  Odometry: " << cartograph.trajectory.back()
              << "\nstep: " << step << "  STM: " << cartograph.STM.size()  << "   WM: "
              << cartograph.WM.size()  << "   LTM: " << cartograph.LTM.size()
-             << "\nstep: " << step << "  Features left: " << featuresVec1.size()
-             << "   Features right: " << featuresVec2.size()
+             << "\nstep: " << step << "  Features left: " << featureVec1.size()
+             << "   Features right: " << featureVec2.size()
              << "\nstep: " << step << "  Images time: " << dt1
              << "   Features time: " << dt2
              << "\nstep: " << step << "  LM time: " << dt3 << flush;
@@ -495,10 +494,10 @@ int main()
             double resizeRatio = 1;
             cv::resize(image1, image1, cv::Size(0,0), resizeRatio, resizeRatio);
             cv::cvtColor(image1, image1, CV_GRAY2BGR);
-            for (int j = 0; j < featuresVec1.size(); j++)
+            for (int j = 0; j < featureVec1.size(); j++)
             {
-                cv::circle(image1, cv::Point(featuresVec1[j].pt(0),
-                    featuresVec1[j].pt(1))*resizeRatio, 6, cv::Scalar(255, 0, 0), 1);
+                cv::circle(image1, cv::Point(featureVec1[j].pt(0),
+                    featureVec1[j].pt(1))*resizeRatio, 6, cv::Scalar(255, 0, 0), 1);
             }
             if (saveDebugImages)
             {

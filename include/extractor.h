@@ -14,21 +14,33 @@ using namespace std;
 
 enum FeatureType {SURF, Custom};
 
+const int N = 8;
+
+typedef cv::Mat_<float> fMat;
+typedef cv::Mat_<int> iMat;
+typedef Matrix<float, 4*N*N, 1> Descriptor;
+
 struct Feature
 {
 
-    Vector2d pt; // representation: (x, y). TODO: change representation to (y, x) ?
-    Matrix<float,64,1> desc;
+    Vector2d pt; // representation: (x, y)
+    Descriptor desc;
 
-    float size, angle;
+    float size, angle; // rename size -> scale
 
-    Feature(double x, double y, const Matrix<float,64,1> & d, float size, float angle)
+    Feature(double x, double y, float size, float angle)
+                : pt(x, y), size(size), angle(angle) {}
+                
+    Feature(const Vector2d & p, float size, float angle)
+                : pt(p), size(size), angle(angle) {}
+                
+    Feature(double x, double y, const Descriptor & d, float size, float angle)
                 : pt(x, y) , desc(d) , size(size) , angle(angle) {}
 
-    Feature(const Vector2d & p, const Matrix<float,64,1> & d)
+    Feature(const Vector2d & p, const Descriptor & d)
                 : pt(p) , desc(d) {}
 
-    Feature(const Vector2d & p, const Matrix<float,64,1> & d, float size, float angle)
+    Feature(const Vector2d & p, const Descriptor & d, float size, float angle)
                 : pt(p) , desc(d), size(size), angle(angle) {}
 
     Feature(double x, double y, float * d)
@@ -40,7 +52,50 @@ struct Feature
     Feature() {}
 };
 
-class Extractor
+template<typename T>
+inline bool pairCompare(const pair<float, T> & a, const pair<float, T> & b) 
+{
+    return a.first < b.first;
+}
+
+class FeatureExtractor
+{
+public:
+    FeatureExtractor(int numFeatures) : numFeatures(numFeatures), thresh(0.0001), descSize(N, N) {}
+    
+    virtual ~FeatureExtractor() {}
+    
+    void compute(const fMat & src, vector<Feature> & featureVec);
+    
+    void findFeatures(const fMat & src);
+    
+    void findMaxima();
+    
+    void computeDescriptor(const fMat & src, Vector2d pt, Descriptor & d);
+    
+    void computeGradients(const fMat & src);
+    
+    void computeNormImage(const fMat & src);
+    
+    void computeResponse(float scale);
+    
+    // Compute desriptors, fill the Feature structs
+    void finalizeFeatures(const fMat & src, vector<Feature> & featureVec);
+    
+private:
+    int numFeatures;
+    float thresh;
+    iMat mask;
+    fMat normImg, response;
+    fMat gradx, grady;
+    fMat Ixx, Ixy, Iyy;
+    cv::Size descSize;
+    vector<pair<float, Vector2d>> maxVec;
+}; 
+
+/*
+class Extractor //TODO make two extractors for each camera
+//TODO inherit from a normal extractor one with masks and bin information
 {
 private:
 
@@ -49,8 +104,8 @@ private:
 
     FeatureType fType = FeatureType::SURF;
 
-    cv::Mat kernel;
-    cv::Mat mask;
+    fMat kernel;
+    fMat mask;
     int thresh = 50;
     const int descWidth = 4;
 
@@ -87,28 +142,25 @@ public:
     void setType(FeatureType featType);
 
     //TODO make general extractor and inherit stereo extractor
-    void operator()(const cv::Mat & img, std::vector<Feature> & featuresVec, int camId=-1);
+    void operator()(const fMat & img, std::vector<Feature> & featureVec, int camId=-1);
 
-    void extractFeatures(cv::Mat src, vector<cv::KeyPoint> points, cv::Mat & descriptors);
+    void extractFeatures(const fMat & src, vector<cv::KeyPoint> points, fMat & descriptors);
 
-    void extractFeatures(const vector<cv::Mat> & images, vector< vector<cv::KeyPoint> > & keypoints,
-                         vector<cv::Mat> & descriptors);
+    void extractDescriptor(const fMat & src, cv::Point2f pt, int patchSize, cv::Size descSize, fMat & dst);
 
-    void extractDescriptor(cv::Mat src, cv::Point2f pt, int patchSize, cv::Size descSize, cv::Mat & dst);
+    void findMax(const fMat & src, vector<cv::Point2f> & maxPoints, float threshold);
 
-    void findMax(cv::Mat src, vector<cv::Point2f> & maxPoints, float threshold, int camId);
-
-    void findFeatures(cv::Mat src, std::vector<cv::KeyPoint> & points, int camId, float scale1,
+    void findFeatures(const fMat & src, std::vector<cv::KeyPoint> & points, int camId, float scale1,
                       float scale2=-1, int steps=3);
 
-    void computeResponse(const cv::Mat src, cv::Mat & dst, float scale);
+    void computeResponse(const fMat & src, fMat & dst, float scale);
 
-    void cvtNormimagesmage(cv::Mat & image);
+    void cvtNormimagesmage(fMat & image);
 
     //void computeBinMaps();
 
     void computeMaps();
 
-};
+};*/
 
 #endif

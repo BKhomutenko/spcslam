@@ -15,7 +15,6 @@
 #include "geometry.h"
 #include "vision.h"
 #include "mei.h"
-#include "tests/cartography_tests.h"
 
 #define EPS 1e-6
 

@@ -56,7 +56,7 @@ struct LandMark
     Vector3d X;
 
     //Feature descriptor
-    Matrix<float, 64, 1> d;
+    Descriptor d;
 
     //Feature angle
     float angle;

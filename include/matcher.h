@@ -12,21 +12,23 @@
 
 using namespace std;
 
+double computeDist(const Descriptor & d1, const Descriptor & d2);
+
 class Matcher
 {
 public:
-
-    double bfDistTh = 0.30;
-    double bfDistTh2 = 0.30;
-    double stereoDistTh = 0.30;
-    double reproDistTh = 0.5;
+    const double thresh2 = 25000; //FIXME
+    double bfDistTh = thresh2;
+    double bfDistTh2 = thresh2;
+    double stereoDistTh = thresh2;
+    double reproDistTh = thresh2;
 
     const int bf2matches = 3;
 
     double alfaTolerance = 0.4; //degrees
     double betaTolerance = 0.4; //degrees
 
-    double binDelta = 1; //degrees
+    double binDelta = 0.5; //degrees
 
     Eigen::MatrixXi binMapL;
     Eigen::MatrixXi binMapR;
@@ -36,28 +38,28 @@ public:
     Eigen::MatrixXd alfaMap2;
     Eigen::MatrixXd betaMap2;
 
-    void bruteForce(const vector<Feature> & featuresVec1,
-                    const vector<Feature> & featuresVec2,
+    void bruteForce(const vector<Feature> & featureVec1,
+                    const vector<Feature> & featureVec2,
                     vector<int> & matches) const;
 
-    void bruteForceOneToOne(const vector<Feature> & featuresVec1,
-                            const vector<Feature> & featuresVec2,
+    void bruteForceOneToOne(const vector<Feature> & featureVec1,
+                            const vector<Feature> & featureVec2,
                             vector<int> & matches) const;
 
-    void bruteForce_2(const vector<Feature> & featuresVec1,
-                      const vector<Feature> & featuresVec2,
+    void bruteForce_2(const vector<Feature> & featureVec1,
+                      const vector<Feature> & featureVec2,
                       vector<vector<int>> & matches) const;
 
-    void stereoMatch(const vector<Feature> & featuresVec1,
-                     const vector<Feature> & featuresVec2,
+    void stereoMatch(const vector<Feature> & featureVec1,
+                     const vector<Feature> & featureVec2,
                      vector<int> & matches) const;
 
-    void stereoMatch_2(const vector<Feature> & featuresVec1,
-                     const vector<Feature> & featuresVec2,
+    void stereoMatch_2(const vector<Feature> & featureVec1,
+                     const vector<Feature> & featureVec2,
                      vector<int> & matches) const;
 
-    void matchReprojected(const vector<Feature> & featuresVec1,
-                          const vector<Feature> & featuresVec2,
+    void matchReprojected(const vector<Feature> & featureVec1,
+                          const vector<Feature> & featureVec2,
                           vector<int> & matches, double radius) const;
 
     void initStereoBins(const StereoSystem & stereo);

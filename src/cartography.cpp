@@ -480,7 +480,7 @@ void Odometry::Ransac()
 
     inlierMask.resize(numPoints);
 
-    const int numIterMax = 300;
+    const int numIterMax = 100;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -492,8 +492,8 @@ void Odometry::Ransac()
         vector<Vector3d> ransacHP;
         int idx1m, idx2m, idx3m;
         int counter = 0;
-        do
-        {
+//        do
+//        {
             idx1m = rand() % maxIdx;
 
             do
@@ -506,16 +506,16 @@ void Odometry::Ransac()
                 idx3m = rand() % maxIdx;
             } while (idx3m == idx1m or idx3m == idx2m);
 
-            ransacHP = { cloud[idx1m], cloud[idx2m], cloud[idx3m] };
-            counter++;
-            if (counter == 10000)
-            {
-                cout << endl << endl << "ERROR: Ransac could not find a model" << endl << endl;
-                exit(1);
-            }
+//            ransacHP = { cloud[idx1m], cloud[idx2m], cloud[idx3m] };
+//            counter++;
+//            if (counter == 10000)
+//            {
+//                cout << endl << endl << "ERROR: Ransac could not find a model" << endl << endl;
+//                exit(1);
+//            }
 
         //} while (0);
-        } while (checkSpan(ransacHP, 0.2) == false);
+//        } while (checkSpan(ransacHP, 0.2) == false);
 
 
         //solve an optimization problem
@@ -559,6 +559,7 @@ void Odometry::Ransac()
             //TODO copy in a bettegit lor way
             inlierMask = currentInlierMask;
             bestInliers = countInliers;
+            cout << bestInliers << endl;
             TorigBase = pose;
         }
     }
@@ -574,7 +575,7 @@ void Odometry::Ransac_2()
 
     inlierMask_2.resize(numPoints);
 
-    const int numIterMax = 500;
+    const int numIterMax = 150;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -586,8 +587,8 @@ void Odometry::Ransac_2()
         vector<Vector3d> ransacHP;
         int idx1m, idx2m, idx3m;
         int counter = 0;
-        do
-        {
+//        do
+//        {
             idx1m = rand() % maxIdx;
 
             do
@@ -601,15 +602,15 @@ void Odometry::Ransac_2()
             } while (idx3m == idx1m or idx3m == idx2m);
 
             ransacHP = { cloud[idx1m], cloud[idx2m], cloud[idx3m] };
-            counter++;
-            if (counter == 10000)
-            {
-                cout << endl << endl << "ERROR: Ransac could not find a model" << endl << endl;
-                exit(1);
-            }
+//            counter++;
+//            if (counter == 10000)
+//            {
+//                cout << endl << endl << "ERROR: Ransac could not find a model" << endl << endl;
+//                exit(1);
+//            }
 
         //} while (0);
-        } while (checkSpan(ransacHP, 0.15) == false);
+//        } while (checkSpan(ransacHP, 0.15) == false);
 
         int idx1p = rand() % observationVec_2[idx1m].size();
         int idx2p = rand() % observationVec_2[idx2m].size();
@@ -666,7 +667,7 @@ void Odometry::Ransac_2()
                     best = j;
                 }
             }
-            if (errNorm < 2)
+            if (errNorm < 4)
             {
                 currentInlierMask[i][best] = true;
                 countInliers++;

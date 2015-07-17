@@ -9,60 +9,15 @@
 
 using namespace std;
 
-// display the projected points along with the original features (all at once)
-void drawPoints(const vector<Eigen::Vector2d> & ptVec1,
-                const vector<Eigen::Vector2d> & ptVec2,
-                cv::Mat & out)
-{
-    for (int i = 0; i < ptVec1.size(); i++)
-    {
-        cv::circle(out, cv::Point(ptVec1[i](0), ptVec1[i](1)), 5, cv::Scalar(0, 255, 0));
-        cv::circle(out, cv::Point(ptVec2[i](0), ptVec2[i](1)), 10, cv::Scalar(0, 0, 255));
-    }
-
-}
-
-void drawPoints(const vector<Feature> & fVec1,
-                const vector<Eigen::Vector2d> & ptVec2,
-                cv::Mat & out)
-{
-    for (int i = 0; i < fVec1.size(); i++)
-    {
-      //  cv::circle(out, cv::Point(fVec1[i].pt(0), fVec1[i].pt(1)), 5, cv::Scalar(0, 255, 0));
-
-    }
-    for (int i = 0; i < ptVec2.size(); i++)
-    {
-
-        cv::circle(out, cv::Point(ptVec2[i](0), ptVec2[i](1)), 10, cv::Scalar(0, 0, 255));
-    }
-}
-
-void drawPoints(const vector<Feature> & fVec1,
-                const vector<Feature> & fVec2,
-                cv::Mat & out, cv::Scalar color1, cv::Scalar color2)
-{
-    for (int i = 0; i < fVec1.size(); i++)
-    {
-        cv::circle(out, cv::Point(fVec1[i].pt(0), fVec1[i].pt(1)), 5, color1);
-
-    }
-    for (int i = 0; i < fVec2.size(); i++)
-    {
-
-        cv::circle(out, cv::Point(fVec2[i].pt(0), fVec2[i].pt(1)), 10, color2);
-    }
-}
-
 void testOdometry()
 {
     float resizeRatio = 1;
 
     //stringstream sstm;
 
-    cv::Mat img1L = cv::imread("../datasets/dataset_odometry/view_left_0.png", 0);
-    cv::Mat img1R = cv::imread("../datasets/dataset_odometry/view_right_0.png", 0);
-    cv::Mat img2L = cv::imread("../datasets/dataset_odometry/view_left_1.png", 0);
+    cv::Mat img1L = cv::imread("/home/bogdan/projects/icars/img_difficult/l00.jpg", 0);
+    cv::Mat img1R = cv::imread("/home/bogdan/projects/icars/img_difficult/r00.jpg", 0);
+    cv::Mat img2L = cv::imread("/home/bogdan/projects/icars/img_difficult/l02.jpg", 0);
 
     cv::resize(img1L, img1L, cv::Size(0,0), resizeRatio, resizeRatio);
     cv::resize(img1R, img1R, cv::Size(0,0), resizeRatio, resizeRatio);
@@ -74,14 +29,14 @@ void testOdometry()
     MeiCamera camR(1296, 966, paramsR.data());
     Transformation<double> tL(0, 0, 0, 0, 0, 0);
     Transformation<double> tR(0.788019, 0.00459233, -0.0203431, -0.00243736, 0.0859855, 0.000375454);
-    StereoCartography map(tL, tR, camL, camR);
+    StereoCartography cartograph(tL, tR, camL, camR);
 
     vector<Feature> fVec1, fVec2, fVec3, fVec1m, fVec2m;
 
-    Extractor extr(1000, 2, 2, false, true);
-    extr(img1L, fVec1);
-    extr(img1R, fVec2);
-    extr(img2L, fVec3);
+    FeatureExtractor extr(500);
+    extr.compute(img1L, fVec1);
+    extr.compute(img1R, fVec2);
+    extr.compute(img2L, fVec3);
     const int N1 = fVec1.size();
     const int N2 = fVec2.size();
     const int N3 = fVec3.size();
@@ -89,7 +44,7 @@ void testOdometry()
 
     vector<int> matches(N1, -1);
 
-    map.matcher.stereoMatch(fVec1, fVec2, matches);
+    cartograph.matcher.stereoMatch(fVec1, fVec2, matches);
 
     //vector<Eigen::Vector2d> vec1, vec2;
     //vector<Eigen::Vector3d> vecR;
@@ -109,7 +64,7 @@ void testOdometry()
 
     // reconstruct point cloud
     vector<Eigen::Vector3d> PC;
-    map.stereo.reconstructPointCloud(ptVec1, ptVec2, PC);
+    cartograph.stereo.reconstructPointCloud(ptVec1, ptVec2, PC);
 
     //create landmarks
     for (int i = 0; i < PC.size(); i++)
@@ -125,27 +80,31 @@ void testOdometry()
         L.observations = oVec;
         L.d = fVec1m[i].desc;
 
-        map.LM.push_back(L);
+        cartograph.WM.push_back(L);
     }
 
-    cout << "Number of matches= " << map.LM.size() << endl;
+    cout << "Number of matches= " << cartograph.WM.size() << endl;
 
     Transformation<double> TfirstSecond, t0;
 
-    map.trajectory.push_back(t0);
+    cartograph.trajectory.push_back(t0);
 
     vector<Eigen::Vector3d> PCsecond;
 
     for (int i = 0; i < 10; i++)
     {
 
-        TfirstSecond = map.estimateOdometry(fVec3);
+        TfirstSecond = cartograph.estimateOdometry_3(fVec3);
 
         TfirstSecond.inverseTransform(PC, PCsecond);
 
+        vector<Feature> featureVec;
+        
+       
+                          
         //cout << endl << "Estimation completed" << endl;
 
-        cout << endl << " Odometry:" << TfirstSecond << endl << endl;
+        cout << endl << " Odometry: " << TfirstSecond << endl << endl;
 
 
         /*
@@ -153,9 +112,9 @@ void testOdometry()
         ofstream myfile("cloud.txt");
         if (myfile.is_open())
         {
-            for (int i = 0; i < map.LM.size(); i++)
+            for (int i = 0; i < cartograph.LM.size(); i++)
             {
-                myfile << map.LM[i].X << "\n";
+                myfile << cartograph.LM[i].X << "\n";
             }
             myfile.close();
             cout << endl << "Point cloud saved to file" << endl;
@@ -164,17 +123,32 @@ void testOdometry()
 
         // reproject point cloud (first)
         vector<Eigen::Vector2d> pc1, pc2;
-        map.stereo.projectPointCloud(PC, pc1, pc2);
+        cartograph.stereo.projectPointCloud(PC, pc1, pc2);
 
         // reproject point cloud (second)
         vector<Eigen::Vector2d> pc1second, pc2second;
-        map.stereo.projectPointCloud(PCsecond, pc1second, pc2second);
+        cartograph.stereo.projectPointCloud(PCsecond, pc1second, pc2second);
 
+        for (unsigned int i = 0; i < pc1second.size(); i++)
+        {
+            featureVec.push_back(Feature(pc1second[i], cartograph.WM[i].d));
+        }
+        
+        vector<int> matches;
+        cartograph.matcher.matchReprojected(featureVec, fVec3, matches, 3);
 
+        pc2second.clear();
+        for (unsigned int i = 0; i < featureVec.size(); i++)
+        {
+            if (matches[i] != -1)
+            {
+                pc2second.push_back(featureVec[i].pt);            
+            }
+        }
         /*
         // display the projected points along with the original features (one at the time)
         cv::Mat outL, outR;
-        for (int i = 0; i < map.LM.size(); i++)
+        for (int i = 0; i < cartograph.WM.size(); i++)
         {
             vector<cv::KeyPoint> k;
             k.push_back(cv::KeyPoint(ptVec1[i](0), ptVec1[i](1), 5));
@@ -202,14 +176,15 @@ void testOdometry()
             cv::waitKey();
         }
         */
+        cv::Mat img1out, img2out;
+        cv::cvtColor(img1L, img1out, CV_GRAY2BGR);
+        cv::cvtColor(img2L, img2out, CV_GRAY2BGR);
+        drawPoints(ptVec1, ptVec2, img1out);
+        drawPoints(fVec3, pc1second, img2out);
+        cv::imshow("Initial", img1out);
+        cv::imshow("Following", img2out);
 
-        /*drawPoints(ptVec1, pc1, img1L);
-        drawPoints(fVec3, pc1second, img2L);
-
-        cv::imshow("Left", img1L);
-        cv::imshow("Right", img2L);
-
-        cv::waitKey();*/
+        cv::waitKey();
     }
 }
 
@@ -225,9 +200,9 @@ void testOdometry()
 int main()
 {
 
-    //testOdometry();
+    testOdometry();
 
-    initializeMap();
+//    initializeMap();
 
     cout << endl;
 
