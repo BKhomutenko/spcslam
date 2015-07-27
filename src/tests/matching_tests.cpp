@@ -311,8 +311,8 @@ void displayBruteForce()
 
     //stringstream sstm;
 
-    Mat img1 = imread("/home/bogdan/projects/icars/img_difficult/l00.jpg", 0);
-    Mat img2 = imread("/home/bogdan/projects/icars/img_difficult/l02.jpg", 0);
+    Mat img1 = imread("/home/bogdan/projects/data/icars/img_difficult/l00.jpg", 0);
+    Mat img2 = imread("/home/bogdan/projects/data/icars/img_difficult/l02.jpg", 0);
 
     vector<Feature> featureVec1, featureVec2;
     FeatureExtractor extr(500);
@@ -327,7 +327,7 @@ void displayBruteForce()
     vector<int> matches(N1, -1);
 
     Matcher matcher;
-    matcher.bruteForceOneToOne(featureVec1, featureVec2, matches);
+    matcher.bruteForce(featureVec1, featureVec2, matches);
 
     vector<KeyPoint> keypoints1;
     for (int i = 0; i < N1; i++)
@@ -371,8 +371,8 @@ void displayStereoMatch(const StereoSystem & stereo)
 
     //stringstream sstm;
 
-    Mat img1 = imread("/home/bogdan/projects/icars/img_left/frame0000.jpg", 0);
-    Mat img2 = imread("/home/bogdan/projects/icars/img_right/frame0000.jpg", 0);
+    Mat img1 = imread("/home/bogdan/projects/data/icars/img_left/frame0000.jpg", 0);
+    Mat img2 = imread("/home/bogdan/projects/data/icars/img_right/frame0000.jpg", 0);
 
     vector<Feature> featureVec1, featureVec2;
     FeatureExtractor extr(500);
@@ -445,10 +445,10 @@ void displayStereoMatch_2(const StereoSystem & stereo)
 
     stringstream sstm;
 
-    /*Mat img1 = imread("/home/bogdan/projects/icars/img_left/frame0000.jpg", 0);
-    Mat img2 = imread("/home/bogdan/projects/icars/img_right/frame0000.jpg", 0);*/
-    Mat img1 = imread("/home/bogdan/projects/icars/img_difficult/l00.jpg", 0);
-    Mat img2 = imread("/home/bogdan/projects/icars/img_difficult/r00.jpg", 0);
+    /*Mat img1 = imread("/home/bogdan/projects/data/icars/img_left/frame0000.jpg", 0);
+    Mat img2 = imread("/home/bogdan/projects/data/icars/img_right/frame0000.jpg", 0);*/
+    Mat img1 = imread("/home/bogdan/projects/data/icars/img_difficult/l00.jpg", 0);
+    Mat img2 = imread("/home/bogdan/projects/data/icars/img_difficult/r00.jpg", 0);
     vector<Feature> featureVec1, featureVec2;
     FeatureExtractor extr(500);
 
@@ -598,8 +598,8 @@ void testDistancesBF()
 
     //stringstream sstm;
 
-    Mat img1 = imread("/home/bogdan/projects/icars/img_left/frame0000.jpg", 0);
-    Mat img2 = imread("/home/bogdan/projects/icars/img_right/frame0000.jpg", 0);
+    Mat img1 = imread("/home/bogdan/projects/data/icars/img_left/frame0000.jpg", 0);
+    Mat img2 = imread("/home/bogdan/projects/data/icars/img_right/frame0000.jpg", 0);
 
     vector<Feature> featureVec1, featureVec2;
     FeatureExtractor extr(200);
@@ -740,10 +740,10 @@ void displayBruteForce_2 ()
 
     //stringstream sstm;
 
-//    Mat img1 = imread("/home/bogdan/projects/icars/img_left/frame0000.jpg", 0);
-//    Mat img2 = imread("/home/bogdan/projects/icars/img_left/frame0002.jpg", 0);
-    Mat img1 = imread("/home/bogdan/projects/icars/img_difficult/l00.jpg", 0);
-    Mat img2 = imread("/home/bogdan/projects/icars/img_difficult/r00.jpg", 0);
+//    Mat img1 = imread("/home/bogdan/projects/data/icars/img_left/frame0000.jpg", 0);
+//    Mat img2 = imread("/home/bogdan/projects/data/icars/img_left/frame0002.jpg", 0);
+    Mat img1 = imread("/home/bogdan/projects/data/icars/img_difficult/l00.jpg", 0);
+    Mat img2 = imread("/home/bogdan/projects/data/icars/img_difficult/r00.jpg", 0);
     vector<Feature> featureVec1, featureVec2;
     FeatureExtractor extr(500);
 
@@ -815,8 +815,12 @@ void displayBruteForce_2 ()
                  << "  distance: " << dist << " Size 1: " << featureVec1[tr].size
                  << "  Size 2: " << featureVec2[qu].size << endl ;
              
-
-            const int deltaN = 2;
+            const Descriptor & d1 = featureVec1[tr].desc, d2 = featureVec2[qu].desc;
+            Matrix<float, N, N> D1(d1.data()), D2(d2.data());
+            cout << "D1 : " << endl << D1 << endl;
+            cout << "D2 : " << endl << D2 << endl;
+//            cout << "D2iff : " << endl << (d2 - d1).transpose() << endl;
+          /*  const int deltaN = 2;
             const Descriptor & d1 = featureVec1[tr].desc, d2 = featureVec2[qu].desc;
             Matrix<float, N*N, 1> f(d1.data()), g(d2.data());
             Matrix<float, N*N, 1> err = g-f;
@@ -845,7 +849,7 @@ void displayBruteForce_2 ()
             cout << "D1 : " << endl << D1 << endl;
             cout << "D2 : " << endl << D2 << endl;
             cout << "D3 : " << endl << D3 << endl;
-            cout << "diff : " << endl << errSq << endl;
+            cout << "diff : " << endl << errSq << endl;*/
             Mat imgMatches;
             drawMatches(img1, k1, img2, k2, mD2, imgMatches, 255);
             imshow("Matches", imgMatches);

@@ -15,8 +15,8 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Vector2d;
 
-//const double thresh = (N-1)*(N-1); //FIXME
-const double thresh = 60*60;
+//const double thresh = (N-1)*N; //FIXME
+const double thresh = 26;
 const int deltaN = 2;
 
 template<int Len>
@@ -25,8 +25,8 @@ inline float dist(const Matrix<float, Len, 1> & a, const Matrix<float, Len, 1> &
     float res = 0;
     for (unsigned int i = 0; i < Len; i++)
     {
-        float x = abs(err[i])/0.1;
-        res += x*x/2;
+        float x = err[i] / (a[i]) /0.1;
+        res += abs(x*x/2);
     }
     return res;
 }
@@ -41,26 +41,27 @@ double computeDist(const Descriptor & d1, const Descriptor & d2)
     Matrix<float, N*N, 1> err = g-f;
     
     
-    
-    if (dist(f, g, err) > 3*thresh)
-    {
-        return 3*thresh;
-    }
-    
-    Matrix<float, N*N, deltaN> df(d1.data()+N*N);
-    Matrix<float, N*N, deltaN> dg(d2.data()+N*N);
+//    
+//    if (dist(f, g, err) > 3*thresh)
+//    {
+//        return 3*thresh;
+//    }
+//    
+//    Matrix<float, N*N, deltaN> df(d1.data()+N*N);
+//    Matrix<float, N*N, deltaN> dg(d2.data()+N*N);
 
-    Matrix<float, N*N, deltaN> G = 0.5*(df + dg);
+//    Matrix<float, N*N, deltaN> G = 0.5*(df + dg);
 
-    Matrix<float, deltaN, 1> delta = (G.transpose()*G).inverse()*(G.transpose()*err);
-    if (delta.norm() > 0.5)
-    {
-        delta *= 0.5/delta.norm();
-    }
-    f -= G*delta;
-    err = g - f;
+//    Matrix<float, deltaN, 1> delta = (G.transpose()*G).inverse()*(G.transpose()*err);
+//    if (delta.norm() > 0.5)
+//    {
+//        delta *= 0.5/delta.norm();
+//    }
+//    f -= G*delta;
+//    err = g - f;
 
     return dist(f, g, err);
+//    return err.dot(err);
 }
 
 void Matcher::bruteForce(const vector<Feature> & featureVec1,

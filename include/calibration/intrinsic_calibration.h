@@ -30,8 +30,8 @@ public:
     
     bool compute(ICamera & camera)
     {
+        cout << "### Initial extrinsic estimation ###" << endl;
         
-        cout << "### Intrinsic parameters calibration ###" << endl;
         vector<double> intrinsic = camera.params;
         
         if (monoCalibDataVec.size() == 0)
@@ -42,7 +42,7 @@ public:
         
         //initial board positions estimation
         estimateInitialGrid(camera, monoCalibDataVec);
-        
+        cout << "### Intrinsic parameters calibration ###" << endl;
         // Problem initialization
         Problem problem;
         initIntrinsicProblem(problem, intrinsic, monoCalibDataVec);

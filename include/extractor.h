@@ -14,11 +14,11 @@ using namespace std;
 
 enum FeatureType {SURF, Custom};
 
-const int N = 8;
+const int N = 4;
 
 typedef cv::Mat_<float> fMat;
 typedef cv::Mat_<int> iMat;
-typedef Matrix<float, 4*N*N, 1> Descriptor;
+typedef Matrix<float, N*N, 1> Descriptor;
 
 struct Feature
 {

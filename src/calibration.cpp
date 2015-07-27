@@ -37,12 +37,12 @@ Intrinsic 2 :
     IntrinsicCameraCalibration<MeiProjector> calibLeft;
     IntrinsicCameraCalibration<MeiProjector> calibRight;
 
-    if (calibLeft.initialize("/home/valerio/projects/spcslam/calibInfoLeft.txt"))
+    if (calibLeft.initialize("/home/bogdan/projects/git/spcslam/calibInfoLeft2.txt"))
     {
         calibLeft.compute(cam1);
         calibLeft.residualAnalysis(cam1);
     }
-    if (calibRight.initialize("calibInfoRight.txt"))
+   /* if (calibRight.initialize("calibInfoRight.txt"))
     {
         calibRight.compute(cam2);
         calibRight.residualAnalysis(cam2);
@@ -61,18 +61,18 @@ Intrinsic 2 :
 
     cout << "Extrinsic : " << endl;
     cout << xi << endl;
-
+*/
     cout << "Intrinsic 1 : " << endl;
     for (auto & p : cam1.params)
     {
         cout << boost::format("%3.3f ") % p;
     }
-    cout << endl;
+    cout << endl;/*
     cout << "Intrinsic 2 : " << endl;
     for (auto & p : cam2.params)
     {
         cout << boost::format("%3.3f ") % p;
-    }
+    }*/
     cout << endl;
 /*   extrinsicStereoCalibration("calibInfoLeft.txt","calibInfoRight.txt", "calibInfoStereo.txt",
            par1, par2, xi);
@@ -95,8 +95,8 @@ Intrinsic 2 :
     MeiCamera cam2mei(1296, 966, 0.567528, 1.18243, 376.884, 376.175, 659., 488.023);
 //par2[0], par2[1], par2[2], par2[3], par2[4], par2[5]);
 
-    string fileName1 = "/home/bogdan/projects/icars/calib_images/13032015_stereo_zoe/left_1426238819.pgm";
-    string fileName2 = "/home/bogdan/projects/icars/calib_images/13032015_stereo_zoe/left_1426238820.pgm";
+    string fileName1 = "/home/bogdan/projects/data/icars/calib_images/13032015_stereo_zoe/left_1426238819.pgm";
+    string fileName2 = "/home/bogdan/projects/data/icars/calib_images/13032015_stereo_zoe/left_1426238820.pgm";
     Mat frame1 = imread(fileName1, 0);
     Mat frame2 = imread(fileName2, 0);
     vector<Point2f> centers1, centers2;
@@ -137,8 +137,8 @@ int main(int argc, char** argv) {
     double params[6]{0, 0, 1000, 1000, 650, 450},
 =======
 
-    fileName1 = "/home/bogdan/projects/icars/calib_images/13032015_stereo_zoe/right_1426238819.pgm";
-    fileName2 = "/home/bogdan/projects/icars/calib_images/13032015_stereo_zoe/right_1426238820.pgm";
+    fileName1 = "/home/bogdan/projects/data/icars/calib_images/13032015_stereo_zoe/right_1426238819.pgm";
+    fileName2 = "/home/bogdan/projects/data/icars/calib_images/13032015_stereo_zoe/right_1426238820.pgm";
     frame1 = imread(fileName1, 0);
     frame2 = imread(fileName2, 0);
     patternIsFound1 = findChessboardCorners(frame1, patternSize, centers1);
@@ -198,21 +198,21 @@ int main(int argc, char** argv) {
     Problem problem;
 <<<<<<< HEAD
 
-    addResidual("/home/bogdan/projects/icars/calib_dataset/left_1426238811.pgm",
+    addResidual("/home/bogdan/projects/data/icars/calib_dataset/left_1426238811.pgm",
 =======
 
-    addResidual("/home/bogdan/projects/icars/calib_dataset/right_1426238811.pgm",
+    addResidual("/home/bogdan/projects/data/icars/calib_dataset/right_1426238811.pgm",
 >>>>>>> calibration
             problem, params, xi1);
-    addResidual("/home/bogdan/projects/icars/calib_dataset/right_1426238815.pgm",
+    addResidual("/home/bogdan/projects/data/icars/calib_dataset/right_1426238815.pgm",
             problem, params, xi2);
-    addResidual("/home/bogdan/projects/icars/calib_dataset/right_1426238818.pgm",
+    addResidual("/home/bogdan/projects/data/icars/calib_dataset/right_1426238818.pgm",
             problem, params, xi3);
-    addResidual("/home/bogdan/projects/icars/calib_dataset/right_1426238820.pgm",
+    addResidual("/home/bogdan/projects/data/icars/calib_dataset/right_1426238820.pgm",
             problem, params, xi4);
-    addResidual("/home/bogdan/projects/icars/calib_dataset/right_1426238823.pgm",
+    addResidual("/home/bogdan/projects/data/icars/calib_dataset/right_1426238823.pgm",
             problem, params, xi5);
-    addResidual("/home/bogdan/projects/icars/calib_dataset/right_1426238826.pgm",
+    addResidual("/home/bogdan/projects/data/icars/calib_dataset/right_1426238826.pgm",
             problem, params, xi6);
 
     Solver::Options options;

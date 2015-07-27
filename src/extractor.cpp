@@ -48,53 +48,57 @@ T sign(const T & x)
     return T((x > 0) - (x < 0));
 }
 
-
 void FeatureExtractor::computeDescriptor(const fMat & src, Vector2d pt, Descriptor & d)
 {
     int patchSize = 24;
-    double alpha = 5, beta = 1;
+    float alpha = 5, beta = 1;
     fMat patch, patchx, patchy, patchl;
     fMat patchr(Size(patchSize, patchSize));
     Point cvpt(pt[0], pt[1]);
     getRectSubPix(src, Size(patchSize, patchSize), cvpt, patch, CV_32F);
     
-    patch = patch/alpha + beta;
-    log(patch, patchl);
-
+    d.setZero();
+    float b = (patchSize - 1)/2.; // the center of the patch
     
-    getRectSubPix(gradx, Size(patchSize, patchSize), cvpt, patchx, CV_32F);
-    GaussianBlur(patchx, patchx,  Size(0, 0), 1.2);
-    patchx /= patch;
-    
-    
-    getRectSubPix(grady, Size(patchSize, patchSize), cvpt, patchy, CV_32F);
-    
-    patchy /= patch;
-    
-    double b = (patchSize - 1)/2.; // the center of the patch
+   /* for (unsigned int i = 0; i < patchSize; i++)
+    {
+        for (unsigned int j = 0; j < patchSize; j++)
+        {
+            float dx = (j - b);
+            float dy = (i - b);
+            
+            patch(i, j) *= exp(-dx*dx/36 - dy*dy/36) / 256.;
+            d[0] += patch(i, j);
+            d[1] += patch(i, j)*dy; //Mv
+            d[N] += patch(i, j)*dx; //Mu
+        }
+    }
+    float x0 = d[N] / d[0], y0 = d[1] / d[0];        */
     for (unsigned int i = 0; i < patchSize; i++)
     {
         for (unsigned int j = 0; j < patchSize; j++)
         {
-            patchr(i, j) = patchy(i,j) * (i - b) + patchx(i,j) * (j - b);
+            float dx = (j - b);
+            float dy = (i - b);
+            patch(i, j) *= exp(-dx*dx/25 - dy*dy/25) / 256.;
+            float ly = 1;
+            for (int u = 0; u < N; u++, ly *= dy)
+            {
+                float lx = 1;
+                for (int v = 0; v < N; v++, lx *= dx)
+                {
+                    d(u + v*N) += patch(i, j) *lx*ly;///4*(u+1)*(v + 1);
+                }
+            }
         }
     }
     
-    GaussianBlur(patchl, patchl,  Size(0, 0), 1.5);
-    resize(patchl, patchl, descSize);
-    copy(patchl.begin(), patchl.end(), d.data());
+//    Matrix<float, N, N> D(d.data());
+//    cout << D << endl << endl;
+//    imshow("patch", patch);
+//    waitKey();
     
-    GaussianBlur(patchx, patchx,  Size(0, 0), 1.5);
-    resize(patchx, patchx, descSize);
-    copy(patchx.begin(), patchx.end(), d.data() + N*N);
     
-    GaussianBlur(patchy, patchy,  Size(0, 0), 1.5);
-    resize(patchy, patchy, descSize);
-    copy(patchy.begin(), patchy.end(), d.data() + 2*N*N);
-    
-    GaussianBlur(patchr, patchr,  Size(0, 0), 1.5);
-    resize(patchr, patchr, descSize);
-    copy(patchr.begin(), patchr.end(), d.data() + 3*N*N);
 //    double dmean = d.mean();
 //    for (unsigned int i = 0; i < d.innerSize(); i++)
 //    {
@@ -190,8 +194,8 @@ void FeatureExtractor::computeResponse(float scale)
 
     fMat trace = (Jxx + Jyy + 1);
     response = std::sqrt(scale) * (Jxx.mul(Jyy) - Jxy.mul(Jxy)) / trace;
-    imshow("response", response/10);
-    waitKey();
+//    imshow("response", response/10);
+//    waitKey();
 }
 
 /*

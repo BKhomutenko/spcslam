@@ -211,7 +211,7 @@ public:
                     Vector2d p = calibDataVec[ptIdx].projection[i];
                     Vector2d pModel = projModelVec[i];
 
-                    circle(frame, Point(p(0), p(1)), 7, 127, 1);
+                    circle(frame, Point(p(0), p(1)), 7, 127, 2);
                     circle(frame, Point(pModel(0), pModel(1)), 4.5, 255, 1);
                     Vector2d delta = p - pModel;
                     errorPlot.at<float>(floor(delta(1)*100+ 200) , floor(delta(0)*100+ 200)) += 0.2;

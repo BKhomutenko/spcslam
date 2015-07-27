@@ -15,9 +15,9 @@ void testOdometry()
 
     //stringstream sstm;
 
-    cv::Mat img1L = cv::imread("/home/bogdan/projects/icars/img_difficult/l00.jpg", 0);
-    cv::Mat img1R = cv::imread("/home/bogdan/projects/icars/img_difficult/r00.jpg", 0);
-    cv::Mat img2L = cv::imread("/home/bogdan/projects/icars/img_difficult/l02.jpg", 0);
+    cv::Mat img1L = cv::imread("/home/bogdan/projects/data/icars/img_difficult/l06.jpg", 0);
+    cv::Mat img1R = cv::imread("/home/bogdan/projects/data/icars/img_difficult/r06.jpg", 0);
+    cv::Mat img2L = cv::imread("/home/bogdan/projects/data/icars/img_difficult/l07.jpg", 0);
 
     cv::resize(img1L, img1L, cv::Size(0,0), resizeRatio, resizeRatio);
     cv::resize(img1R, img1R, cv::Size(0,0), resizeRatio, resizeRatio);

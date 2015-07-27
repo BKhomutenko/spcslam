@@ -480,7 +480,7 @@ void Odometry::Ransac()
 
     inlierMask.resize(numPoints);
 
-    const int numIterMax = 100;
+    const int numIterMax = 250;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
@@ -575,7 +575,7 @@ void Odometry::Ransac_2()
 
     inlierMask_2.resize(numPoints);
 
-    const int numIterMax = 150;
+    const int numIterMax = 250;
     const Transformation<double> initialPose = TorigBase;
     int bestInliers = 0;
     //TODO add a termination criterion
